@@ -47,7 +47,7 @@ export const CardWidget: React.FC<CardWidgetProps> = ({ card, onEdit, onDelete, 
                 bg-gradient-to-br ${gradient} 
                 transition-all duration-300 group-hover:shadow-2xl group-hover:scale-[1.02]
                 overflow-hidden
-                aspect-[1.3] min-h-[176px] sm:aspect-auto sm:min-h-[250px]
+                aspect-[1.586] min-h-[190px] sm:aspect-auto sm:min-h-[250px]
             `}>
                 {/* Decorative circles */}
                 <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
@@ -69,10 +69,14 @@ export const CardWidget: React.FC<CardWidgetProps> = ({ card, onEdit, onDelete, 
                         <p className="font-bold text-sm sm:text-base mb-0.5 truncate">{card.bankName}</p>
                         <p className="text-[10px] sm:text-xs opacity-75 truncate">{card.cardType}</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="relative flex items-center gap-2 flex-shrink-0">
                         {card.bankName.toUpperCase() === 'VISA' ? <VisaLogo /> :
                             card.bankName.toLowerCase().includes('master') ? <MastercardLogo /> :
                                 <ChipIcon />}
+                        <div className="relative flex items-center gap-1 non-printable sm:absolute sm:top-3 sm:right-3 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 z-20">
+                            <button type="button" title="Edit Kartu" aria-label="Edit Kartu" onClick={(e) => { e.stopPropagation(); onEdit(); }} className="rounded-full p-2 shadow-sm"><PencilIcon className="w-4 h-4" /></button>
+                            <button type="button" title="Hapus Kartu" aria-label="Hapus Kartu" onClick={(e) => { e.stopPropagation(); if (window.confirm('Apakah Anda yakin ingin menghapus kartu ini?')) onDelete(); }} className="rounded-full p-2 shadow-sm"><Trash2Icon className="w-4 h-4" /></button>
+                        </div>
                     </div>
                 </div>
 
@@ -99,11 +103,6 @@ export const CardWidget: React.FC<CardWidgetProps> = ({ card, onEdit, onDelete, 
                     )}
                 </div>
 
-                {/* Actions on hover */}
-                <div className="absolute top-3 right-3 flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 non-printable z-20">
-                    <button type="button" title="Edit Kartu" aria-label="Edit Kartu" onClick={(e) => { e.stopPropagation(); onEdit(); }} className="rounded-full p-2 shadow-sm"><PencilIcon className="w-4 h-4" /></button>
-                    <button type="button" title="Hapus Kartu" aria-label="Hapus Kartu" onClick={(e) => { e.stopPropagation(); if (window.confirm('Apakah Anda yakin ingin menghapus kartu ini?')) onDelete(); }} className="rounded-full p-2 shadow-sm"><Trash2Icon className="w-4 h-4" /></button>
-                </div>
             </div>
 
             {connectedPockets.length > 0 && (

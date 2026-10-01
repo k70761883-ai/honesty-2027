@@ -52,7 +52,7 @@ const PocketsTab: React.FC<PocketsTabProps> = ({
             </div>
 
             {/* Bank Card Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
                 {pockets.map(p => {
                     const sourceCard = p.sourceCardId ? cards.find(c => c.id === p.sourceCardId) : null;
                     const amount = p.amount;
@@ -82,7 +82,7 @@ const PocketsTab: React.FC<PocketsTabProps> = ({
                 {/* Buat Kantong Baru placeholder styled to match bank card form */}
                 <button
                     onClick={() => onOpenModal('pocket', 'add')}
-                    className="finance-add-pocket-card group min-h-[200px] sm:min-h-[250px] border-2 border-dashed border-[#EAEFF4] hover:border-[#5D87FF] bg-[#F4F6F9]/60 hover:bg-[#ECF2FF]/40 rounded-2xl sm:rounded-3xl flex flex-col items-center justify-center text-[#5A6A85] hover:text-[#5D87FF] transition-all duration-300 shadow-xs p-4 sm:p-6"
+                    className="finance-add-pocket-card group min-h-[240px] sm:min-h-[250px] border-2 border-dashed border-[#EAEFF4] hover:border-[#5D87FF] bg-[#F4F6F9]/60 hover:bg-[#ECF2FF]/40 rounded-2xl sm:rounded-3xl flex flex-col items-center justify-center text-[#5A6A85] hover:text-[#5D87FF] transition-all duration-300 shadow-xs p-4 sm:p-6"
                 >
                     <div className="w-14 h-14 rounded-2xl bg-white border border-[#EAEFF4] group-hover:border-[#5D87FF]/40 flex items-center justify-center transition-all shadow-xs group-hover:scale-110">
                         <PlusIcon className="w-7 h-7 text-[#5D87FF]" />

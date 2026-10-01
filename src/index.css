@@ -1532,7 +1532,7 @@ body {
   button:not(.client-payment-toggle):not(.finance-add-pocket-card):not(.finance-add-account-card):not(.vendor-portfolio-card):not(.btn-box-read):not(.btn-box-edit):not(.btn-box-delete):not(.btn-box-wa):not(.btn-box-add):not(.rounded-full):not([class*="rounded-full"]):not(.bottom-nav button):not([class*="w-7"]):not([class*="w-8"]):not([class*="h-7"]):not([class*="h-8"]):not([class*="w-6"]):not([class*="h-6"]),
   input[type="button"],
   input[type="submit"],
-  [role="button"]:not(.bottom-nav *),
+  [role="button"]:not(.bottom-nav *):not(.calendar-event-entry),
   .button-primary,
   .button-secondary,
   .button-danger,

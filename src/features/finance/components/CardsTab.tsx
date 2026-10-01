@@ -48,7 +48,7 @@ const CardsTab: React.FC<CardsTabProps> = ({
                     <span className="hidden sm:inline">Tambah Kartu</span>
                 </button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
                 {cards.map(card => {
                     const connectedPockets = pockets.filter(p => p.sourceCardId === card.id);
                     return (

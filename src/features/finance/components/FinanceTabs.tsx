@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     FileTextIcon, ClipboardListIcon, CreditCardIcon, TrendingUpIcon,
     BarChart2Icon, DollarSignIcon, ChevronDownIcon
@@ -18,6 +19,25 @@ export const FinanceTabs: React.FC<FinanceTabsProps> = ({
     setShowVisualSummary
 }) => {
     const [showReports, setShowReports] = useState(false);
+    const [reportMenuPosition, setReportMenuPosition] = useState({ top: 0, left: 0 });
+    const reportsButtonRef = useRef<HTMLButtonElement>(null);
+
+    const toggleReports = () => {
+        if (showReports) {
+            setShowReports(false);
+            return;
+        }
+
+        const buttonRect = reportsButtonRef.current?.getBoundingClientRect();
+        if (buttonRect) {
+            const menuWidth = 192;
+            setReportMenuPosition({
+                top: buttonRect.bottom + 8,
+                left: Math.max(8, Math.min(buttonRect.left, window.innerWidth - menuWidth - 8)),
+            });
+        }
+        setShowReports(true);
+    };
 
     const operasionalTabs = [
         { id: 'transactions', label: 'Transaksi', icon: FileTextIcon },
@@ -66,7 +86,8 @@ export const FinanceTabs: React.FC<FinanceTabsProps> = ({
             <div className="flex shrink-0 items-center gap-2 sm:contents">
             <div className="relative shrink-0">
                 <button
-                    onClick={() => setShowReports(!showReports)}
+                    ref={reportsButtonRef}
+                    onClick={toggleReports}
                         className={`
                         inline-flex shrink-0 items-center gap-2 whitespace-nowrap min-h-[44px] px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm
                         ${reportTabs.some(t => t.id === activeTab) ? 'bg-[#5D87FF] text-white' : 'text-[#5A6A85] hover:bg-[#F4F6F9]'}
@@ -77,8 +98,11 @@ export const FinanceTabs: React.FC<FinanceTabsProps> = ({
                     <ChevronDownIcon className="w-3 h-3" />
                 </button>
                 
-                {showReports && (
-                    <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-[#EAEFF4] rounded-xl shadow-xl z-50 p-2 space-y-1">
+                {showReports && createPortal(
+                    <div
+                        className="fixed w-48 bg-white border border-[#EAEFF4] rounded-xl shadow-xl z-50 p-2 space-y-1"
+                        style={reportMenuPosition}
+                    >
                         {reportTabs.map(tab => (
                             <button
                                 key={tab.id}
@@ -88,7 +112,8 @@ export const FinanceTabs: React.FC<FinanceTabsProps> = ({
                                 {tab.label}
                             </button>
                         ))}
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </div>
 

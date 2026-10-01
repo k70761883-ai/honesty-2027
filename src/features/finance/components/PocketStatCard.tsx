@@ -101,7 +101,7 @@ export const PocketStatCard: React.FC<PocketStatCardProps> = ({
                     relative w-full rounded-2xl p-3 text-white shadow-xl hover:shadow-2xl sm:rounded-3xl sm:p-5
                     border border-white/20 bg-gradient-to-br ${gradient}
                     overflow-hidden transition-all duration-300 flex flex-col justify-between
-                    aspect-[1.3] min-h-[176px] sm:aspect-auto sm:min-h-[250px]
+                    min-h-[240px] sm:min-h-[250px]
                 `}
             >
                 {/* Hologram / Specular shine overlays */}
@@ -172,16 +172,16 @@ export const PocketStatCard: React.FC<PocketStatCardProps> = ({
                 {/* 2. Card Middle: Virtual Account Number & Balance */}
                 <div className="relative z-10 my-1 sm:my-3">
                     {/* Bank Card Monospace Number */}
-                    <p className="font-mono text-[9px] sm:text-sm tracking-[0.1em] sm:tracking-[0.25em] text-white/80 drop-shadow-sm mb-1">
+                    <p className="font-mono text-xs sm:text-sm tracking-[0.1em] sm:tracking-[0.25em] text-white/80 drop-shadow-sm mb-1">
                         {cardNumber}
                     </p>
 
                     <div className="flex items-baseline justify-between gap-2">
                         <div>
-                            <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/70 font-semibold block">
+                            <span className="text-[10px] uppercase tracking-widest text-white/70 font-semibold block">
                                 Saldo Kantong
                             </span>
-                            <p className="text-lg sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-md">
+                            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-md">
                                 {formatCurrency(amount)}
                             </p>
                         </div>
@@ -240,7 +240,7 @@ export const PocketStatCard: React.FC<PocketStatCardProps> = ({
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onWithdraw(); }}
-                        className="flex-1 rounded-xl bg-white/15 hover:bg-white/25 active:scale-[0.98] text-white text-xs font-bold py-1 sm:py-2 transition-all flex items-center justify-center gap-1.5 backdrop-blur-sm border border-white/10 shadow-xs"
+                        className="flex-1 rounded-xl bg-white/15 hover:bg-white/25 active:scale-[0.98] text-xs font-bold py-2 transition-all flex items-center justify-center gap-1.5 backdrop-blur-sm border border-white/10 shadow-xs"
                     >
                         <ArrowUp className="w-3.5 h-3.5" />
                         <span>Tarik Dana</span>
@@ -248,7 +248,7 @@ export const PocketStatCard: React.FC<PocketStatCardProps> = ({
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onDeposit(); }}
-                        className="flex-1 rounded-xl bg-white text-slate-900 hover:bg-white/90 active:scale-[0.98] text-xs font-bold py-1 sm:py-2 transition-all flex items-center justify-center gap-1.5 shadow-md"
+                        className="flex-1 rounded-xl bg-white text-slate-900 hover:bg-white/90 active:scale-[0.98] text-xs font-bold py-2 transition-all flex items-center justify-center gap-1.5 shadow-md"
                     >
                         <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />
                         <span>Setor Dana</span>

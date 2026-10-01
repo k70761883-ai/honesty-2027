@@ -15,6 +15,7 @@ interface StatCardProps {
   onClick?: () => void; // Handler untuk klik
   image?: string; // Gambar opsional untuk widget
   compactOnMobile?: boolean;
+  iconBesideContentOnMobile?: boolean;
 }
 
 const StatCard: React.FC<StatCardProps> = React.memo(({
@@ -31,7 +32,8 @@ const StatCard: React.FC<StatCardProps> = React.memo(({
   description,
   onClick,
   image,
-  compactOnMobile = false
+  compactOnMobile = false,
+  iconBesideContentOnMobile = false
 }) => {
 
   const changeColor = changeType === 'increase' ? 'text-brand-success' : 'text-brand-danger';
@@ -98,11 +100,11 @@ const StatCard: React.FC<StatCardProps> = React.memo(({
       flex flex-col justify-between
       ${onClick ? 'cursor-pointer' : ''}
     `}>
-      <div className="relative z-10 h-full flex flex-col justify-between">
+      <div className={`relative z-10 h-full flex ${iconBesideContentOnMobile ? 'flex-row items-center gap-2 sm:flex-col sm:items-stretch sm:justify-between sm:gap-0' : 'flex-col justify-between'}`}>
         {/* Icon and Change Badge Section */}
-        <div className={`flex items-start justify-between ${compactOnMobile ? 'mb-2 sm:mb-4' : 'mb-4'}`}>
+        <div className={`flex items-start justify-between ${iconBesideContentOnMobile ? 'mb-0 sm:mb-4' : compactOnMobile ? 'mb-2 sm:mb-4' : 'mb-4'}`}>
           <div className={`
-            ${compactOnMobile ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-11 h-11 sm:w-12 sm:h-12'}
+            ${iconBesideContentOnMobile ? 'w-8 h-8 sm:w-12 sm:h-12' : compactOnMobile ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-11 h-11 sm:w-12 sm:h-12'}
             rounded-xl
             flex items-center justify-center 
             flex-shrink-0 
@@ -142,7 +144,7 @@ const StatCard: React.FC<StatCardProps> = React.memo(({
         </div>
 
         {/* Content Section */}
-        <div>
+        <div className={iconBesideContentOnMobile ? 'min-w-0 flex-1 sm:flex-none' : ''}>
           <p className="
             text-xs
             text-[#5A6A85]
