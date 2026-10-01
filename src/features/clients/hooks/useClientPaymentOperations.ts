@@ -8,7 +8,7 @@ import {
     Notification,
     ViewType
 } from '../../../types';
-import { createTransaction as createTransactionRow, updateCardBalance } from '../../../services/transactions';
+import { createTransaction as createTransactionRow, updateTransaction as updateTransactionRow, updateCardBalance } from '../../../services/transactions';
 import { updateProject as updateProjectRow } from '../../../services/projects';
 import { findCardIdByMeta } from '../../../services/cards';
 import { ensureOnlineOrNotify, formatCurrency } from '../utils/clientHelpers';
@@ -83,8 +83,7 @@ export const useClientPaymentOperations = ({
         if (!before) return;
 
         try {
-            const { updateTransaction: updateTxRow } = await import('../../../services/transactions');
-            const updated = await updateTxRow(id, patch);
+            const updated = await updateTransactionRow(id, patch);
 
             // 1. Sync local transactions state
             setTransactions(prev =>

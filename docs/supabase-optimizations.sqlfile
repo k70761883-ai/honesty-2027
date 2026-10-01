@@ -1,0 +1,72 @@
+-- =====================================================
+-- Supabase Database Performance Optimizations
+-- =====================================================
+
+-- Enable pg_stat_statements for monitoring
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+-- CREATE INDEXES FOR COMMON QUERIES
+
+-- Index for clients table
+CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
+CREATE INDEX IF NOT EXISTS idx_clients_since ON clients(since DESC);
+CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name);
+
+-- Index for projects table
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);
+
+-- Index for transactions table
+CREATE INDEX IF NOT EXISTS idx_transactions_project_id ON transactions(project_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+
+-- Index for leads table
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+
+-- Index for team_members table
+CREATE INDEX IF NOT EXISTS idx_team_members_name ON team_members(name);
+CREATE INDEX IF NOT EXISTS idx_team_members_role ON team_members(role);
+
+-- Index for notifications table
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_timestamp ON notifications(timestamp DESC);
+
+-- Index for calendar_events table
+CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(date);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_created_at ON calendar_events(created_at DESC);
+
+-- CREATE COMPOSITE INDEXES FOR COMPLEX QUERIES
+CREATE INDEX IF NOT EXISTS idx_projects_status_client ON projects(status, client_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_project_date ON transactions(project_id, date DESC);
+
+-- CREATE PARTIAL INDEXES
+CREATE INDEX IF NOT EXISTS idx_projects_active ON projects(client_id) 
+WHERE status NOT IN ('Selesai', 'Dibatalkan');
+
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(timestamp DESC)
+WHERE is_read = false;
+
+-- OPTIMIZE DASHBOARD STATS QUERY
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_dashboard_stats AS
+SELECT 
+  (SELECT COUNT(*) FROM projects WHERE status NOT IN ('Selesai', 'Dibatalkan')) as active_projects,
+  (SELECT COUNT(*) FROM projects) as total_projects,
+  (SELECT COUNT(*) FROM clients WHERE status = 'Aktif') as active_clients,
+  (SELECT COUNT(*) FROM clients) as total_clients,
+  (SELECT COUNT(*) FROM leads WHERE status IN ('Discussion', 'Sedang Diskusi')) as discussion_leads,
+  (SELECT COUNT(*) FROM leads WHERE status IN ('Follow Up', 'Menunggu Follow Up')) as follow_up_leads,
+  (SELECT COUNT(*) FROM leads) as total_leads,
+  (SELECT COUNT(*) FROM team_members) as total_team_members,
+  (SELECT COUNT(*) FROM transactions) as total_transactions,
+  (SELECT COALESCE(SUM(CASE WHEN type = 'Pemasukan' THEN amount ELSE 0 END), 0) FROM transactions) as total_revenue,
+  (SELECT COALESCE(SUM(CASE WHEN type = 'Pengeluaran' THEN amount ELSE 0 END), 0) FROM transactions) as total_expense;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_dashboard_stats_single ON mv_dashboard_stats ((true));
+
+CREATE OR REPLACE FUNCTION refresh_dashboard_stats()
+RETURNS void AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY mv_dashboard_stats;
+END;
+$$ LANGUAGE plpgsql;

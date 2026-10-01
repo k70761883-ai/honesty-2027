@@ -31,6 +31,30 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
   );
 };
 
+// Fast skeleton loader that renders immediately without waiting for data
+export const PageSkeleton: React.FC = () => {
+  return (
+    <div className="animate-pulse">
+      {/* Header skeleton */}
+      <div className="h-16 bg-[#ECF2FF] rounded-xl mb-4"></div>
+      
+      {/* Stats cards skeleton */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-24 bg-[#ECF2FF] rounded-xl"></div>
+        ))}
+      </div>
+      
+      {/* Content skeleton */}
+      <div className="space-y-4">
+        <div className="h-8 bg-[#ECF2FF] rounded-lg w-1/3"></div>
+        <div className="h-32 bg-[#ECF2FF] rounded-xl"></div>
+        <div className="h-32 bg-[#ECF2FF] rounded-xl"></div>
+      </div>
+    </div>
+  );
+};
+
 interface DataLoadingWrapperProps {
   loading: boolean;
   loaded: boolean;
@@ -38,6 +62,7 @@ interface DataLoadingWrapperProps {
   children: React.ReactNode;
   loadingMessage?: string;
   onRetry?: () => void;
+  showSkeleton?: boolean;
 }
 
 export const DataLoadingWrapper: React.FC<DataLoadingWrapperProps> = ({
@@ -47,6 +72,7 @@ export const DataLoadingWrapper: React.FC<DataLoadingWrapperProps> = ({
   children,
   loadingMessage,
   onRetry,
+  showSkeleton = false,
 }) => {
   if (error) {
     return (
@@ -71,7 +97,7 @@ export const DataLoadingWrapper: React.FC<DataLoadingWrapperProps> = ({
   }
 
   if (loading && !loaded) {
-    return <LoadingState message={loadingMessage} />;
+    return showSkeleton ? <PageSkeleton /> : <LoadingState message={loadingMessage} />;
   }
 
   return <>{children}</>;

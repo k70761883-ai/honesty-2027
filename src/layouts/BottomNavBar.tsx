@@ -162,49 +162,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   const [isMoreOpen, setIsMoreOpen] = React.useState(false);
 
   const prefetchView = (view: ViewType) => {
-    switch (view) {
-      case ViewType.DASHBOARD:
-        import("../pages/dashboard/DashboardPage");
-        break;
-      case ViewType["Calon Pengantin"]:
-        import("../pages/leads/LeadsPage");
-        break;
-      case ViewType.BOOKING:
-        import("../pages/booking/BookingPage");
-        break;
-      case ViewType.CLIENTS:
-        import("../pages/clients/ClientsPage");
-        break;
-      case ViewType.PROJECTS:
-        import("../pages/projects/ProjectsPage");
-        break;
-      case ViewType.TEAM:
-        import("../pages/team/TeamPage");
-        break;
-      case ViewType.FINANCE:
-        import("../pages/finance/FinancePage");
-        break;
-      case ViewType.CALENDAR:
-        import("../features/projects/components/CalendarView");
-        break;
-      case ViewType.PACKAGES:
-        import("../features/packages/Packages");
-        break;
-      case ViewType.PROMO_CODES:
-        import("../features/promo/PromoCodes");
-        break;
-      case ViewType.GALLERY:
-        import("../features/public/components/GalleryUpload");
-        break;
-      case ViewType.CLIENT_REPORTS:
-        import("../features/clients/components/ClientKPI");
-        break;
-      case ViewType.SETTINGS:
-        import("../pages/settings/SettingsPage");
-        break;
-      default:
-        break;
-    }
+    // Prefetching is handled by React lazy loading in routes
+    // No manual prefetching needed
   };
 
   // Core 4 nav items (always visible)

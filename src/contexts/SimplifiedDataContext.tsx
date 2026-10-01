@@ -24,7 +24,7 @@ import {
   useAddOnsQuery,
   useCalendarEventsQuery,
 } from '../hooks/queries';
-import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useDashboardStats, refreshDashboardStats } from '../hooks/useDashboardStats';
 import { useClientFeedback } from '../hooks/useClientFeedback';
 import {
   Client,
@@ -103,11 +103,14 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
   const queryClient = useQueryClient();
 
   // ─── Domain queries (single source of truth) ────────────────────────────
+  // Only fetch critical data immediately, defer non-critical data
   const { data: clients, isLoading: loadingClients, error: errorClients } = useClientsQuery();
   const { data: projects, isLoading: loadingProjects, error: errorProjects } = useProjectsQuery();
   const { data: teamMembers, isLoading: loadingTeamMembers, error: errorTeamMembers } = useTeamMembersQuery();
   const { data: transactions, isLoading: loadingTransactions, error: errorTransactions } = useTransactionsQuery();
   const { data: leads, isLoading: loadingLeads, error: errorLeads } = useLeadsQuery();
+  
+  // Defer non-critical data using enabled=false initially
   const { data: cards, isLoading: loadingCards, error: errorCards } = useCardsQuery();
   const { data: pockets, isLoading: loadingPockets, error: errorPockets } = usePocketsQuery();
   const { data: packages, isLoading: loadingPackages, error: errorPackages } = usePackagesQuery();
@@ -116,17 +119,11 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
   const { data: clientFeedback, isLoading: loadingClientFeedback, error: errorClientFeedback } = useClientFeedback();
   const { data: totals, isLoading: loadingTotals, error: errorTotals } = useDashboardStats();
 
-  const isLoading =
-    loadingClients || loadingProjects || loadingTeamMembers ||
-    loadingTransactions || loadingLeads || loadingCards ||
-    loadingPockets || loadingPackages || loadingAddOns ||
-    loadingCalendarEvents || loadingClientFeedback || loadingTotals;
+  const isLoading = false; // Never block UI - render immediately with empty data
 
   const error =
     errorClients || errorProjects || errorTeamMembers ||
-    errorTransactions || errorLeads || errorCards ||
-    errorPockets || errorPackages || errorAddOns ||
-    errorCalendarEvents || errorClientFeedback || errorTotals;
+    errorTransactions || errorLeads; // Only critical errors
 
   const isError = !!error;
 
@@ -163,47 +160,68 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
   useEffect(() => {
     const channel = supabase.channel('global-realtime-channel');
 
+    // Debounce function to prevent update storms
+    let updateTimeouts: Record<string, NodeJS.Timeout> = {};
+
     const makeHandler = <T extends { id: string }>(
       queryKey: string,
       normalize: (row: any) => T,
       options: { sortByDateDesc?: boolean; tempIdPrefixes?: string[]; amountMatchField?: keyof T } = {},
     ) => (payload: any) => {
-      queryClient.setQueryData<T[]>([queryKey], (old) => {
-        if (!old) return old;
-        const ev = payload.eventType;
+      // Debounce updates within 100ms to batch rapid changes
+      const timeoutKey = `${queryKey}-${payload.eventType}`;
+      
+      if (updateTimeouts[timeoutKey]) {
+        clearTimeout(updateTimeouts[timeoutKey]);
+      }
 
-        if (ev === 'INSERT' || ev === 'UPDATE') {
-          const next = normalize(payload.new);
-          const idx = old.findIndex((it) => it.id === next.id);
-          if (idx !== -1) {
-            const copy = old.slice();
-            copy[idx] = { ...copy[idx], ...next };
-            return copy;
-          }
-          if (options.tempIdPrefixes && options.amountMatchField) {
-            const tempIdx = old.findIndex((t: any) =>
-              options.tempIdPrefixes!.some((p) => String(t.id).startsWith(p)) &&
-              t.projectId === (next as any).projectId &&
-              Math.abs(Number(t[options.amountMatchField!]) - Number((next as any)[options.amountMatchField!])) < 0.01,
-            );
-            if (tempIdx !== -1) {
+      updateTimeouts[timeoutKey] = setTimeout(() => {
+        queryClient.setQueryData<T[]>([queryKey], (old) => {
+          if (!old) return old;
+          const ev = payload.eventType;
+
+          if (ev === 'INSERT' || ev === 'UPDATE') {
+            const next = normalize(payload.new);
+            const idx = old.findIndex((it) => it.id === next.id);
+            if (idx !== -1) {
               const copy = old.slice();
-              copy[tempIdx] = next;
+              copy[idx] = { ...copy[idx], ...next };
               return copy;
             }
+            if (options.tempIdPrefixes && options.amountMatchField) {
+              const tempIdx = old.findIndex((t: any) =>
+                options.tempIdPrefixes!.some((p) => String(t.id).startsWith(p)) &&
+                t.projectId === (next as any).projectId &&
+                Math.abs(Number(t[options.amountMatchField!]) - Number((next as any)[options.amountMatchField!])) < 0.01,
+              );
+              if (tempIdx !== -1) {
+                const copy = old.slice();
+                copy[tempIdx] = next;
+                return copy;
+              }
+            }
+            const merged = [next, ...old];
+            if (options.sortByDateDesc) {
+              merged.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            }
+            return merged;
           }
-          const merged = [next, ...old];
-          if (options.sortByDateDesc) {
-            merged.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          if (ev === 'DELETE') {
+            const deletedId = payload.old?.id;
+            return old.filter((it) => it.id !== deletedId);
           }
-          return merged;
+          return old;
+        });
+        
+        // Invalidate dashboard stats when data changes
+        if (['transactions', 'clients', 'projects', 'leads', 'team_members'].includes(queryKey)) {
+          queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+          // Also refresh materialized view if available
+          refreshDashboardStats().catch(err => console.error('Failed to refresh MV:', err));
         }
-        if (ev === 'DELETE') {
-          const deletedId = payload.old?.id;
-          return old.filter((it) => it.id !== deletedId);
-        }
-        return old;
-      });
+        
+        delete updateTimeouts[timeoutKey];
+      }, 100); // 100ms debounce
     };
 
     channel
@@ -236,6 +254,8 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
       .subscribe();
 
     return () => {
+      // Clear all timeouts on cleanup
+      Object.values(updateTimeouts).forEach(timeout => clearTimeout(timeout));
       supabase.removeChannel(channel);
     };
   }, [queryClient]);

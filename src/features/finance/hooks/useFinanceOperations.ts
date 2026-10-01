@@ -12,7 +12,8 @@ import {
 import { formatCurrency } from '../../../utils/currency';
 import { createPocket as createPocketRow, updatePocket as updatePocketRow } from '../../../services/pockets';
 import { createCard as createCardRow, updateCard as updateCardRow } from '../../../services/cards';
-import { createTransaction as createTransactionRow } from '../../../services/transactions';
+import { createTransaction as createTransactionRow, listTransactions } from '../../../services/transactions';
+import { updateProject as updateProjectInDb } from '../../../services/projects';
 import { emptyTransaction, emptyPocket, emptyCard } from '../utils/financeHelpers';
 
 interface UseFinanceOperationsParams {
@@ -68,7 +69,6 @@ export function useFinanceOperations({
         if (isLoadingMore || !hasMore) return;
         setIsLoadingMore(true);
         try {
-            const { listTransactions } = await import('../../../services/transactions');
             const nextTxs = await listTransactions({ limit: 100, offset });
             if (nextTxs.length < 100) {
                 setHasMore(false);
@@ -282,7 +282,6 @@ export function useFinanceOperations({
                     const newPaymentStatus = totalPaid >= proj.totalCost ? PaymentStatus.LUNAS : (totalPaid > 0 ? PaymentStatus.DP_TERBAYAR : PaymentStatus.BELUM_BAYAR);
 
                     try {
-                        const { updateProject: updateProjectInDb } = await import('../../../services/projects');
                         await updateProjectInDb(proj.id, { amountPaid: totalPaid, paymentStatus: newPaymentStatus });
                         setProjects(prev => prev.map(p => p.id === proj.id ? { ...p, amountPaid: totalPaid, paymentStatus: newPaymentStatus as any } : p));
                     } catch (e) {

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ViewType, Client, Project, Package, AddOn, Transaction, Profile, NavigationAction, Card, FinancialPocket, ClientFeedback, PromoCode, Notification, Contract } from '../../types';
-import Clients from '../clients/ClientsPage';
-import { Projects } from '../projects/ProjectsPage';
-import Contracts from '../contracts/ContractsPage';
-import ClientReports from '../../features/clients/components/ClientKPI';
+import { ViewType, Client, Project, Package, AddOn, Transaction, Profile, NavigationAction, Card, FinancialPocket, ClientFeedback, PromoCode, Notification, Contract, TeamProjectPayment, Lead } from '../../types';
 import { ArrowLeftIcon } from 'lucide-react';
 import { ClientInfoView } from '../../features/clients/components/ClientInfoView';
+import { LoadingState } from '../../shared/ui/LoadingState';
+import { Clients } from '../clients/ClientsPage';
+import { Projects } from '../projects/ProjectsPage';
+import ContractsPage from '../contracts/ContractsPage';
+import ClientReports from '../../features/clients/components/ClientKPI';
 
 interface DataPengantinHubProps {
     // Props passed from AuthenticatedRoutes
@@ -41,6 +42,11 @@ interface DataPengantinHubProps {
     onSignInvoice: (projectId: string, sig: string) => void;
     onSignTransaction: (transactionId: string, sig: string) => void;
     onRecordPayment: (projectId: string, amount: number, destinationCardId: string) => Promise<void>;
+    // Additional props for child components
+    teamProjectPayments: TeamProjectPayment[];
+    setTeamProjectPayments: React.Dispatch<React.SetStateAction<TeamProjectPayment[]>>;
+    leads: Lead[];
+    onSignContract: (contractId: string, signatureDataUrl: string, signer: string) => void;
 }
 
 export const DataPengantinHub: React.FC<DataPengantinHubProps> = (props) => {
@@ -139,9 +145,9 @@ export const DataPengantinHub: React.FC<DataPengantinHubProps> = (props) => {
 
             <div className="mt-4">
                 {activeTab === 'pengantin' && (
-                    <ClientInfoView 
-                        client={selectedClient} 
-                        projects={props.projects} 
+                    <ClientInfoView
+                        client={selectedClient}
+                        projects={props.projects}
                         transactions={props.transactions}
                     />
                 )}
@@ -150,12 +156,15 @@ export const DataPengantinHub: React.FC<DataPengantinHubProps> = (props) => {
                         {...props}
                         projects={clientProjects}
                         totals={safeTotals}
+                        teamProjectPayments={props.teamProjectPayments}
+                        setTeamProjectPayments={props.setTeamProjectPayments}
                     />
                 )}
                 {activeTab === 'kontrak' && (
-                    <Contracts
+                    <ContractsPage
                         {...props}
                         contracts={clientContracts}
+                        onSignContract={props.onSignContract}
                     />
                 )}
                 {activeTab === 'laporan' && (
@@ -164,6 +173,8 @@ export const DataPengantinHub: React.FC<DataPengantinHubProps> = (props) => {
                         clients={[selectedClient]}
                         projects={clientProjects}
                         feedback={clientFeedback}
+                        leads={props.leads}
+                        setFeedback={props.setClientFeedback}
                     />
                 )}
             </div>

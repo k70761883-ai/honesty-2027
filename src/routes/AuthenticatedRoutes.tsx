@@ -32,6 +32,10 @@ import {
   updateCardBalance,
   updateTransaction as updateTransactionInDb,
 } from "../services/transactions";
+import { Clients } from "../pages/clients/ClientsPage";
+import { Projects } from "../pages/projects/ProjectsPage";
+import ContractsPage from "../pages/contracts/ContractsPage";
+import ClientReports from "../features/clients/components/ClientKPI";
 
 // Lazy-load route components to enable real code-splitting
 const Dashboard = lazy(() => import("../pages/dashboard/DashboardPage"));
@@ -39,10 +43,6 @@ const Leads = lazy(() =>
   import("../pages/leads/LeadsPage").then((m) => ({ default: m.Leads })),
 );
 const Booking = lazy(() => import("../pages/booking/BookingPage"));
-const Clients = lazy(() => import("../pages/clients/ClientsPage"));
-const Projects = lazy(() =>
-  import("../pages/projects/ProjectsPage").then((m) => ({ default: m.Projects })),
-);
 const Freelancers = lazy(() =>
   import("../pages/team/TeamPage").then((m) => ({ default: m.Freelancers })),
 );
@@ -55,11 +55,7 @@ const CalendarView = lazy(() =>
   })),
 );
 const VendorProfileAdmin = lazy(() => import("../pages/admin/VendorProfilePage"));
-const ClientReports = lazy(() => import("../features/clients/components/ClientKPI"));
 const PromoCodes = lazy(() => import("../features/promo/PromoCodes"));
-const Contracts = lazy(() =>
-  import("../pages/contracts/ContractsPage").then((m) => ({ default: m.default })),
-);
 const GalleryUpload = lazy(() => import("../features/public/components/GalleryUpload"));
 const InvoicePage = lazy(() => import("../pages/finance/InvoicePage"));
 const ExcelMigrationPage = lazy(() =>
@@ -302,6 +298,21 @@ export const AuthenticatedRoutes: React.FC<AuthenticatedRoutesProps> = ({
             appData={appData}
             initialAction={initialAction}
             setInitialAction={setInitialAction}
+            teamProjectPayments={teamProjectPayments}
+            setTeamProjectPayments={setTeamProjectPayments}
+            leads={leads}
+            onSignContract={(contractId, signatureDataUrl, signer) => {
+              setContracts((prev) =>
+                prev.map((c) =>
+                  c.id === contractId
+                    ? {
+                        ...c,
+                        [signer === "vendor" ? "vendorSignature" : "clientSignature"]: signatureDataUrl,
+                      }
+                    : c,
+                ),
+              );
+            }}
             onSignInvoice={async (pId, sig) => {
               setProjects((prev) =>
                 prev.map((p) =>
@@ -423,28 +434,29 @@ export const AuthenticatedRoutes: React.FC<AuthenticatedRoutesProps> = ({
           loadingMessage="Memuat data proyek..."
           onRetry={appData?.loadProjects}
         >
-          <Projects
-            projects={projects}
-            setProjects={setProjects}
-            clients={clients}
-            packages={packages}
-            teamMembers={teamMembers}
-            teamProjectPayments={teamProjectPayments}
-            setTeamProjectPayments={setTeamProjectPayments}
-            transactions={transactions}
-            setTransactions={setTransactions}
-            initialAction={initialAction}
-            setInitialAction={setInitialAction}
-            profile={profile}
-            showNotification={showNotification}
-            cards={cards}
-            setCards={setCards}
-            pockets={pockets}
-            setPockets={setPockets}
-            totals={totals ?? {
-            projects: 0,
-            activeProjects: 0,
-            clients: 0,
+          <Suspense fallback={<LoadingState />}>
+            <Projects
+              projects={projects}
+              setProjects={setProjects}
+              clients={clients}
+              packages={packages}
+              teamMembers={teamMembers}
+              teamProjectPayments={teamProjectPayments}
+              setTeamProjectPayments={setTeamProjectPayments}
+              transactions={transactions}
+              setTransactions={setTransactions}
+              initialAction={initialAction}
+              setInitialAction={setInitialAction}
+              profile={profile}
+              showNotification={showNotification}
+              cards={cards}
+              setCards={setCards}
+              pockets={pockets}
+              setPockets={setPockets}
+              totals={totals ?? {
+              projects: 0,
+              activeProjects: 0,
+              clients: 0,
             activeClients: 0,
             leads: 0,
             discussionLeads: 0,
@@ -454,7 +466,8 @@ export const AuthenticatedRoutes: React.FC<AuthenticatedRoutesProps> = ({
             revenue: 0,
             expense: 0,
           }}
-          />
+            />
+          </Suspense>
         </DataLoadingWrapper>
       );
 
@@ -580,14 +593,16 @@ export const AuthenticatedRoutes: React.FC<AuthenticatedRoutesProps> = ({
 
     case ViewType.CLIENT_REPORTS:
       return (
-        <ClientReports
-          clients={clients}
-          leads={leads}
-          projects={projects}
-          feedback={clientFeedback}
-          setFeedback={setClientFeedback}
-          showNotification={showNotification}
-        />
+        <Suspense fallback={<LoadingState />}>
+          <ClientReports
+            clients={clients}
+            leads={leads}
+            projects={projects}
+            feedback={clientFeedback}
+            setFeedback={setClientFeedback}
+            showNotification={showNotification}
+          />
+        </Suspense>
       );
 
     case ViewType.PROMO_CODES:
@@ -610,15 +625,16 @@ export const AuthenticatedRoutes: React.FC<AuthenticatedRoutesProps> = ({
 
     case ViewType.CONTRACTS:
       return (
-        <Contracts
-          contracts={contracts}
-          setContracts={setContracts}
-          clients={clients}
-          projects={projects}
-          profile={profile}
-          showNotification={showNotification}
-          initialAction={initialAction}
-          setInitialAction={setInitialAction}
+        <Suspense fallback={<LoadingState />}>
+          <ContractsPage
+            contracts={contracts}
+            setContracts={setContracts}
+            clients={clients}
+            projects={projects}
+            profile={profile}
+            showNotification={showNotification}
+            initialAction={initialAction}
+            setInitialAction={setInitialAction}
           packages={packages}
           onSignContract={(contractId, signatureDataUrl, signer) => {
             setContracts((prev) =>
@@ -632,7 +648,8 @@ export const AuthenticatedRoutes: React.FC<AuthenticatedRoutesProps> = ({
               ),
             );
           }}
-        />
+          />
+        </Suspense>
       );
 
     case ViewType.INVOICES:

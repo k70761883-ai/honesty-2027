@@ -13,6 +13,7 @@ import {
   listChecklistByProject, deleteChecklistItem,
   initializeDefaultChecklist, setChecklistItemCompleted, updateChecklistItemFields,
   renameChecklistCategory, deleteChecklistItemsByProjectAndCategory,
+  upsertChecklistItems,
 } from '../../../services/weddingDayChecklist';
 import { updateProject as updateProjectInDb } from '../../../services/projects';
 import supabase from '../../../lib/supabaseClient';
@@ -326,7 +327,6 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   const handleAddChecklistItem = async (category: string, itemName: string) => {
     if (!selectedProject) return;
     try {
-      const { upsertChecklistItems } = await import('../../../services/weddingDayChecklist');
       const [row] = await upsertChecklistItems([{ projectId: selectedProject.id, category, itemName, isCompleted: false }]);
       const items = [...(selectedProject.weddingDayChecklist || []), row];
       const updated = { ...selectedProject, weddingDayChecklist: items };

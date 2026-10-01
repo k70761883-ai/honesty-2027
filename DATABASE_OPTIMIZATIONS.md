@@ -1,0 +1,252 @@
+# Supabase Database Performance Optimizations
+
+## SQL Script to Run in Supabase SQL Editor
+
+Copy and run this SQL in your Supabase project SQL Editor to optimize database performance.
+
+```sql
+-- =====================================================
+-- Supabase Database Performance Optimizations
+-- Run this in Supabase SQL Editor
+-- =====================================================
+
+-- 1. ANALYZE TABLE SIZES
+-- Check which tables are largest and need optimization
+SELECT 
+  schemaname,
+  tablename,
+  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size,
+  n_live_tup AS row_count
+FROM pg_stat_user_tables 
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+-- 2. CREATE INDEXES FOR COMMON QUERIES
+-- Index for clients table
+CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
+CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name);
+
+-- Index for projects table
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);
+CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at DESC);
+
+-- Index for transactions table
+CREATE INDEX IF NOT EXISTS idx_transactions_project_id ON transactions(project_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
+
+-- Index for leads table
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);
+
+-- Index for team_members table
+CREATE INDEX IF NOT EXISTS idx_team_members_name ON team_members(name);
+CREATE INDEX IF NOT EXISTS idx_team_members_role ON team_members(role);
+
+-- Index for notifications table
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+
+-- Index for calendar_events table
+CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(date);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_project_id ON calendar_events(project_id);
+
+-- 3. CREATE COMPOSITE INDEXES FOR COMPLEX QUERIES
+-- Composite index for projects with status and client
+CREATE INDEX IF NOT EXISTS idx_projects_status_client ON projects(status, client_id);
+
+-- Composite index for transactions with project and date
+CREATE INDEX IF NOT EXISTS idx_transactions_project_date ON transactions(project_id, date DESC);
+
+-- Composite index for leads with status and date
+CREATE INDEX IF NOT EXISTS idx_leads_status_date ON leads(status, created_at DESC);
+
+-- 4. OPTIMIZE DASHBOARD STATS QUERY
+-- Create a materialized view for dashboard stats
+-- This will cache the results and update periodically
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_dashboard_stats AS
+SELECT 
+  (SELECT COUNT(*) FROM projects WHERE status NOT IN ('Selesai', 'Dibatalkan')) as active_projects,
+  (SELECT COUNT(*) FROM projects) as total_projects,
+  (SELECT COUNT(*) FROM clients WHERE status = 'Aktif') as active_clients,
+  (SELECT COUNT(*) FROM clients) as total_clients,
+  (SELECT COUNT(*) FROM leads WHERE status IN ('Discussion', 'Sedang Diskusi')) as discussion_leads,
+  (SELECT COUNT(*) FROM leads WHERE status IN ('Follow Up', 'Menunggu Follow Up')) as follow_up_leads,
+  (SELECT COUNT(*) FROM leads) as total_leads,
+  (SELECT COUNT(*) FROM team_members) as total_team_members,
+  (SELECT COUNT(*) FROM transactions) as total_transactions,
+  (SELECT COALESCE(SUM(CASE WHEN type = 'Pemasukan' THEN amount ELSE 0 END), 0) FROM transactions) as total_revenue,
+  (SELECT COALESCE(SUM(CASE WHEN type = 'Pengeluaran' THEN amount ELSE 0 END), 0) FROM transactions) as total_expense;
+
+-- Create unique index for materialized view
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_dashboard_stats_single ON mv_dashboard_stats ((true));
+
+-- Function to refresh materialized view
+CREATE OR REPLACE FUNCTION refresh_dashboard_stats()
+RETURNS void AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY mv_dashboard_stats;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5. CREATE PARTIAL INDEXES FOR BETTER PERFORMANCE
+-- Partial index for active projects only
+CREATE INDEX IF NOT EXISTS idx_projects_active ON projects(client_id) 
+WHERE status NOT IN ('Selesai', 'Dibatalkan');
+
+-- Partial index for unread notifications
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, created_at DESC)
+WHERE is_read = false;
+
+-- 6. ENABLE QUERY PLANNING STATISTICS
+-- This helps PostgreSQL make better decisions
+ALTER DATABASE postgres SET default_statistics_target = 100;
+
+-- 7. VACUUM AND ANALYZE TABLES
+-- Reclaim space and update statistics
+VACUUM ANALYZE clients;
+VACUUM ANALYZE projects;
+VACUUM ANALYZE transactions;
+VACUUM ANALYZE leads;
+VACUUM ANALYZE team_members;
+VACUUM ANALYZE notifications;
+VACUUM ANALYZE calendar_events;
+VACUUM ANALYZE cards;
+VACUUM ANALYZE pockets;
+VACUUM ANALYZE packages;
+VACUUM ANALYZE add_ons;
+VACUUM ANALYZE client_feedback;
+VACUUM ANALYZE contracts;
+VACUUM ANALYZE promo_codes;
+VACUUM ANALYZE team_project_payments;
+VACUUM ANALYZE team_payment_records;
+
+-- 8. CHECK FOR SLOW QUERIES
+-- Enable pg_stat_statements if not already enabled
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+-- Query to find slow queries
+SELECT 
+  query,
+  calls,
+  total_exec_time,
+  mean_exec_time,
+  max_exec_time
+FROM pg_stat_statements
+ORDER BY mean_exec_time DESC
+LIMIT 10;
+
+-- 9. OPTIMIZE ROW LEVEL SECURITY (RLS) POLICIES
+-- If RLS is enabled, ensure policies use indexes efficiently
+-- Check existing policies
+SELECT 
+  schemaname,
+  tablename,
+  policyname,
+  permissive,
+  roles,
+  cmd,
+  qual
+FROM pg_policies
+WHERE tablename IN ('clients', 'projects', 'transactions', 'leads')
+ORDER BY tablename, policyname;
+
+-- 10. SET UP AUTO-VACUUM SETTINGS
+-- Adjust auto-vacuum settings for large tables
+ALTER TABLE clients SET (autovacuum_vacuum_scale_factor = 0.1);
+ALTER TABLE projects SET (autovacuum_vacuum_scale_factor = 0.1);
+ALTER TABLE transactions SET (autovacuum_vacuum_scale_factor = 0.1);
+```
+
+## Update Application to Use Materialized View
+
+After running the SQL above, update the dashboard stats query to use the materialized view:
+
+```typescript
+// src/hooks/useDashboardStats.ts
+export const useDashboardStats = () => useQuery({
+  queryKey: ['dashboardStats'],
+  queryFn: async (): Promise<DashboardStats> => {
+    const { data, error } = await supabase
+      .from('mv_dashboard_stats')
+      .select('*')
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      projects: data.total_projects || 0,
+      activeProjects: data.active_projects || 0,
+      clients: data.total_clients || 0,
+      activeClients: data.active_clients || 0,
+      leads: data.total_leads || 0,
+      discussionLeads: data.discussion_leads || 0,
+      followUpLeads: data.follow_up_leads || 0,
+      teamMembers: data.total_team_members || 0,
+      transactions: data.total_transactions || 0,
+      revenue: data.total_revenue || 0,
+      expense: data.total_expense || 0,
+    };
+  },
+  staleTime: 5 * 60 * 1000, // 5 minutes
+  refetchInterval: false, // Will be refreshed by real-time updates
+  refetchOnWindowFocus: false,
+  refetchOnMount: false,
+});
+```
+
+## Refresh Materialized View Periodically
+
+Add a function to refresh the materialized view:
+
+```typescript
+// src/hooks/useDashboardStats.ts
+export const refreshDashboardStats = async () => {
+  await supabase.rpc('refresh_dashboard_stats');
+};
+```
+
+Call this function after data changes:
+
+```typescript
+// In your mutation or data update functions
+await refreshDashboardStats();
+```
+
+## Monitor Performance
+
+After implementing these optimizations:
+
+1. Check query performance in Supabase Dashboard > Database > Query Performance
+2. Monitor slow queries with:
+   ```sql
+   SELECT 
+     query,
+     calls,
+     total_exec_time,
+     mean_exec_time,
+     max_exec_time
+   FROM pg_stat_statements
+   ORDER BY mean_exec_time DESC
+   LIMIT 10;
+   ```
+3. Check table sizes:
+   ```sql
+   SELECT 
+     tablename,
+     pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
+   FROM pg_stat_user_tables 
+   WHERE schemaname = 'public'
+   ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+   ```
+
+## Expected Improvements
+
+- **Dashboard stats query**: 10-100x faster (from multiple queries to single materialized view)
+- **List queries**: 2-5x faster with proper indexes
+- **Filter queries**: 5-10x faster with composite indexes
+- **Overall FCP/LCP**: Expected to improve significantly due to faster data fetching

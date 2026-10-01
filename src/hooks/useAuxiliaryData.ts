@@ -11,6 +11,7 @@ import {
 } from "../types";
 import { createTeamPaymentRecord } from "../services/teamPaymentRecords";
 import { createNotification as createNotificationRow } from "../services/notifications";
+import { createClient } from "../services/clients";
 import {
   useContractsQuery,
   usePromoCodesQuery,
@@ -195,10 +196,9 @@ export function useAuxiliaryData({
       if (!Array.isArray(parsedData) || parsedData.length === 0) return;
       (async () => {
         try {
-          const mod = await import("../services/clients");
           for (const c of parsedData) {
             try {
-              await mod.createClient({
+              await createClient({
                 id: c.id, name: c.name, email: c.email, phone: c.phone,
                 whatsapp: c.whatsapp ?? undefined, since: c.since,
                 instagram: c.instagram ?? undefined, status: c.status,

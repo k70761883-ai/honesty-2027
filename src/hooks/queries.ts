@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { listClients } from '../services/clients';
 import { listProjectsWithRelations } from '../services/projects';
 import { listTransactions } from '../services/transactions';
@@ -18,6 +18,7 @@ import { listNotifications } from '../services/notifications';
 
 // Limit default fetches to 100 for performance
 const DEFAULT_LIMIT = 100;
+const PAGE_SIZE = 50;
 
 export const useClientsQuery = () => useQuery({
     queryKey: ['clients'],
@@ -25,6 +26,18 @@ export const useClientsQuery = () => useQuery({
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+});
+
+export const useClientsInfiniteQuery = () => useInfiniteQuery({
+    queryKey: ['clients', 'infinite'],
+    queryFn: ({ pageParam = 0 }) => listClients({ limit: PAGE_SIZE, offset: pageParam * PAGE_SIZE }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+        if (lastPage.length < PAGE_SIZE) return undefined;
+        return allPages.length;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
 });
 
 export const useProjectsQuery = () => useQuery({
@@ -35,12 +48,36 @@ export const useProjectsQuery = () => useQuery({
     refetchOnMount: false,
 });
 
+export const useProjectsInfiniteQuery = () => useInfiniteQuery({
+    queryKey: ['projects', 'infinite'],
+    queryFn: ({ pageParam = 0 }) => listProjectsWithRelations({ limit: PAGE_SIZE, offset: pageParam * PAGE_SIZE }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+        if (lastPage.length < PAGE_SIZE) return undefined;
+        return allPages.length;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+});
+
 export const useTransactionsQuery = () => useQuery({
     queryKey: ['transactions'],
     queryFn: () => listTransactions({ limit: DEFAULT_LIMIT }),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+});
+
+export const useTransactionsInfiniteQuery = () => useInfiniteQuery({
+    queryKey: ['transactions', 'infinite'],
+    queryFn: ({ pageParam = 0 }) => listTransactions({ limit: PAGE_SIZE, offset: pageParam * PAGE_SIZE }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+        if (lastPage.length < PAGE_SIZE) return undefined;
+        return allPages.length;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
 });
 
 export const useTeamMembersQuery = () => useQuery({

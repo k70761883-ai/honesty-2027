@@ -18,6 +18,33 @@ interface DashboardStats {
 export const useDashboardStats = () => useQuery({
   queryKey: ['dashboardStats'],
   queryFn: async (): Promise<DashboardStats> => {
+    // Try to use materialized view first (much faster)
+    try {
+      const { data, error } = await supabase
+        .from('mv_dashboard_stats')
+        .select('*')
+        .single();
+      
+      if (!error && data) {
+        return {
+          projects: data.total_projects || 0,
+          activeProjects: data.active_projects || 0,
+          clients: data.total_clients || 0,
+          activeClients: data.active_clients || 0,
+          leads: data.total_leads || 0,
+          discussionLeads: data.discussion_leads || 0,
+          followUpLeads: data.follow_up_leads || 0,
+          teamMembers: data.total_team_members || 0,
+          transactions: data.total_transactions || 0,
+          revenue: data.total_revenue || 0,
+          expense: data.total_expense || 0,
+        };
+      }
+    } catch (e) {
+      console.log('Materialized view not available, falling back to direct queries');
+    }
+
+    // Fallback to direct queries if materialized view doesn't exist
     const [
       { data: pData, error: pErr },
       { data: cData, error: cErr },
@@ -60,8 +87,17 @@ export const useDashboardStats = () => useQuery({
       expense: exp,
     };
   },
-  staleTime: 2 * 60 * 1000, // 2 minutes for stats
-  refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  staleTime: 5 * 60 * 1000, // 5 minutes for stats
+  refetchInterval: false, // Disabled - will be invalidated by real-time updates
   refetchOnWindowFocus: false,
   refetchOnMount: false,
 });
+
+// Function to refresh materialized view
+export const refreshDashboardStats = async () => {
+  try {
+    await supabase.rpc('refresh_dashboard_stats');
+  } catch (error) {
+    console.error('Failed to refresh dashboard stats:', error);
+  }
+};

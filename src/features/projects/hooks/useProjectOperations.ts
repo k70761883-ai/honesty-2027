@@ -11,13 +11,15 @@ import {
 } from '../../../types';
 import {
     deleteProject as deleteProjectInDb,
-    updateProject as updateProjectInDb
+    updateProject as updateProjectInDb,
+    listProjectsWithRelations
 } from '../../../services/projects';
 import {
     createTransaction,
     updateCardBalance
 } from '../../../services/transactions';
 import { syncClientStatusFromProjects } from '../../../services/clients';
+import { updatePocket } from '../../../services/pockets';
 import { getProgressForStatus } from '../utils/projectHelpers';
 
 const ensureOnlineOrNotify = (showNotification: (message: string) => void): boolean => {
@@ -68,7 +70,6 @@ export function useProjectOperations({
         if (isLoadingMore || !hasMore) return;
         setIsLoadingMore(true);
         try {
-            const { listProjectsWithRelations } = await import('../../../services/projects');
             const nextProjects = await listProjectsWithRelations({ limit: 100, offset });
             if (nextProjects.length < 100) {
                 setHasMore(false);
@@ -203,7 +204,6 @@ export function useProjectOperations({
             } as any);
 
             if (isFromPocket && sourcePocketId) {
-                const { updatePocket } = await import('../../../services/pockets');
                 await updatePocket(sourcePocketId, { amount: sourcePocket!.amount - printingItem.cost });
             } else if (sourceCardId) {
                 await updateCardBalance(sourceCardId, -Math.abs(printingItem.cost));
