@@ -944,78 +944,80 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                               e.preventDefault();
                               void handleSaveMeeting(kind);
                             }}
-                            className="space-y-3"
+                            className="mt-4 space-y-4"
                           >
-                            <div>
-                              <label htmlFor={`meeting-date-${kind}`} className={labelCls}>Tanggal & Waktu</label>
-                              <input
-                                id={`meeting-date-${kind}`}
-                                type="datetime-local"
-                                required
-                                value={draft.scheduledAt}
-                                onChange={e => setMeetingDrafts(current => ({
-                                  ...current,
-                                  [kind]: { ...current[kind], scheduledAt: e.target.value },
-                                }))}
-                                className={inputCls}
-                              />
-                            </div>
-
-                            {kind === 'regular' && (
+                            <div className="grid grid-cols-1 gap-4">
                               <div>
-                                <label htmlFor="meeting-location" className={labelCls}>Lokasi Meeting</label>
+                                <label htmlFor={`meeting-date-${kind}`} className={labelCls}>Tanggal & Waktu</label>
                                 <input
-                                  id="meeting-location"
-                                  type="text"
-                                  value={draft.location}
+                                  id={`meeting-date-${kind}`}
+                                  type="datetime-local"
+                                  required
+                                  value={draft.scheduledAt}
                                   onChange={e => setMeetingDrafts(current => ({
                                     ...current,
-                                    regular: { ...current.regular, location: e.target.value },
+                                    [kind]: { ...current[kind], scheduledAt: e.target.value },
                                   }))}
-                                  placeholder="Contoh: kantor, kafe, atau alamat"
                                   className={inputCls}
                                 />
                               </div>
-                            )}
 
-                            {kind === 'zoom' && (
+                              {kind === 'regular' && (
+                                <div>
+                                  <label htmlFor={`meeting-location-${kind}`} className={labelCls}>Lokasi Meeting</label>
+                                  <input
+                                    id={`meeting-location-${kind}`}
+                                    type="text"
+                                    value={draft.location}
+                                    onChange={e => setMeetingDrafts(current => ({
+                                      ...current,
+                                      regular: { ...current.regular, location: e.target.value },
+                                    }))}
+                                    placeholder="Contoh: kantor, kafe, atau alamat"
+                                    className={inputCls}
+                                  />
+                                </div>
+                              )}
+
+                              {kind === 'zoom' && (
+                                <div>
+                                  <label htmlFor={`meeting-zoom-url-${kind}`} className={labelCls}>Link Zoom</label>
+                                  <input
+                                    id={`meeting-zoom-url-${kind}`}
+                                    type="url"
+                                    value={draft.zoomUrl}
+                                    onChange={e => setMeetingDrafts(current => ({
+                                      ...current,
+                                      zoom: { ...current.zoom, zoomUrl: e.target.value },
+                                    }))}
+                                    placeholder="https://zoom.us/j/..."
+                                    className={inputCls}
+                                  />
+                                  {validZoomUrl && (
+                                    <a href={draft.zoomUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#4267C8] hover:underline">
+                                      <ExternalLink className="h-3.5 w-3.5" /> Buka link Zoom
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+
                               <div>
-                                <label htmlFor="meeting-zoom-url" className={labelCls}>Link Zoom</label>
-                                <input
-                                  id="meeting-zoom-url"
-                                  type="url"
-                                  value={draft.zoomUrl}
+                                <label htmlFor={`meeting-notes-${kind}`} className={labelCls}>Catatan / Hasil Meeting</label>
+                                <textarea
+                                  id={`meeting-notes-${kind}`}
+                                  value={draft.resultNotes}
                                   onChange={e => setMeetingDrafts(current => ({
                                     ...current,
-                                    zoom: { ...current.zoom, zoomUrl: e.target.value },
+                                    [kind]: { ...current[kind], resultNotes: e.target.value },
                                   }))}
-                                  placeholder="https://zoom.us/j/..."
-                                  className={inputCls}
+                                  rows={3}
+                                  placeholder="Tuliskan hasil pembahasan, keputusan, dan tindak lanjut..."
+                                  className={`${inputCls} resize-y`}
                                 />
-                                {validZoomUrl && (
-                                  <a href={draft.zoomUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#4267C8] hover:underline">
-                                    <ExternalLink className="h-3.5 w-3.5" /> Buka link Zoom
-                                  </a>
-                                )}
                               </div>
-                            )}
-
-                            <div>
-                              <label htmlFor={`meeting-notes-${kind}`} className={labelCls}>Catatan / Hasil Meeting</label>
-                              <textarea
-                                id={`meeting-notes-${kind}`}
-                                value={draft.resultNotes}
-                                onChange={e => setMeetingDrafts(current => ({
-                                  ...current,
-                                  [kind]: { ...current[kind], resultNotes: e.target.value },
-                                }))}
-                                rows={3}
-                                placeholder="Tuliskan hasil pembahasan, keputusan, dan tindak lanjut..."
-                                className={`${inputCls} resize-y`}
-                              />
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                            <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
                               {meeting && (
                                 <button
                                   type="button"
