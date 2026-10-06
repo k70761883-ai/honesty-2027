@@ -237,6 +237,7 @@ export function normalizeClient(row: any): Client {
     lastContact: row.last_contact || sinceDate,
     portalAccessId: row.portal_access_id,
     address: row.address ?? undefined,
+    homeAddress: row.home_address ?? undefined,
     createdAt: row.created_at || sinceDate,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -257,6 +258,7 @@ function denormalizeClient(obj: Partial<Client>): any {
     ...(obj.lastContact !== undefined ? { last_contact: obj.lastContact } : {}),
     ...(obj.portalAccessId !== undefined ? { portal_access_id: obj.portalAccessId } : {}),
     ...(obj.address !== undefined ? { address: obj.address } : {}),
+    ...(obj.homeAddress !== undefined ? { home_address: obj.homeAddress } : {}),
   };
 }
 

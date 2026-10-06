@@ -69,6 +69,7 @@ export const initialFormState = {
     driveLink: '',
     promoCodeId: '',
     address: '',
+    homeAddress: '', // Alamat rumah pengantin untuk pengiriman cetakan
 };
 
 export type ClientFormData = typeof initialFormState;

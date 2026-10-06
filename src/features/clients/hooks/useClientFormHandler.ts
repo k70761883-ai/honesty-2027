@@ -162,6 +162,7 @@ export const useClientFormHandler = ({
                 durationSelection: (freshProject as any)?.durationSelection || '',
                 unitPrice: (freshProject as any)?.unitPrice,
                 address: freshProject?.address || freshClient.address || '',
+                homeAddress: freshClient.homeAddress || '',
                 dp: freshProject?.amountPaid !== undefined && freshProject?.amountPaid !== null ? String(freshProject.amountPaid) : '',
                 dpDestinationCardId: initialCardId,
                 notes: freshProject?.notes || '',
@@ -195,6 +196,7 @@ export const useClientFormHandler = ({
                 instagram: client.instagram || '',
                 clientType: client.clientType,
                 address: client.address || '',
+                homeAddress: client.homeAddress || '',
                 customItems: [],
             });
         } else {
@@ -324,6 +326,7 @@ export const useClientFormHandler = ({
                         lastContact: new Date().toISOString(),
                         portalAccessId: crypto.randomUUID(),
                         address: formData.address || undefined,
+                        homeAddress: formData.homeAddress || undefined,
                     } as Omit<Client, 'id'>);
                     clientId = created.id;
                     setClients(prev => [created, ...prev]);
@@ -490,6 +493,7 @@ export const useClientFormHandler = ({
                 instagram: formData.instagram !== undefined ? formData.instagram.trim() : (existingClient.instagram || ''),
                 clientType: (formData.clientType as ClientType) || existingClient.clientType,
                 address: formData.address !== undefined ? formData.address : (existingClient.address || ''),
+                homeAddress: formData.homeAddress !== undefined ? formData.homeAddress : (existingClient.homeAddress || ''),
                 status: existingClient.status,
                 since: existingClient.since,
                 portalAccessId: existingClient.portalAccessId,
@@ -509,6 +513,7 @@ export const useClientFormHandler = ({
                     clientType: updatedClientPayload.clientType,
                     lastContact: updatedClientPayload.lastContact,
                     address: updatedClientPayload.address || undefined,
+                    homeAddress: updatedClientPayload.homeAddress || undefined,
                 });
                 const finalClient: Client = {
                     ...existingClient,

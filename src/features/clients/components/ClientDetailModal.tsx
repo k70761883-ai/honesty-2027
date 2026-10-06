@@ -486,6 +486,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                     <InfoField label="Alamat Lengkap">{client.address}</InfoField>
                   </div>
                 )}
+                {client.homeAddress && (
+                  <div className="sm:col-span-2">
+                    <InfoField label="📦 Alamat Rumah (Pengiriman Cetakan)">
+                      {client.homeAddress}
+                    </InfoField>
+                  </div>
+                )}
               </div>
             </div>
 

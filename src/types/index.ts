@@ -249,6 +249,7 @@ export interface Client {
   lastContact: string; // ISO Date String
   portalAccessId: string;
   address?: string;
+  homeAddress?: string; // Alamat rumah pengantin untuk pengiriman cetakan
   createdAt?: string;
   updatedAt?: string;
 }

@@ -337,6 +337,21 @@ const ClientForm: React.FC<ClientFormProps> = ({
                             rows={3}
                         ></textarea>
                     </div>
+                    <div className="space-y-2">
+                        <label htmlFor="homeAddress" className="block text-xs text-[#5A6A85]">
+                            Alamat Rumah Pengantin
+                            <span className="ml-1.5 text-[10px] text-[#5D87FF] font-semibold">(Untuk Pengiriman Cetakan)</span>
+                        </label>
+                        <textarea
+                            id="homeAddress"
+                            name="homeAddress"
+                            value={formData.homeAddress || ''}
+                            onChange={handleFormChange}
+                            className="w-full px-4 py-3 rounded-xl border border-[#EAEFF4] bg-white text-[#2A3547] focus:outline-none focus:ring-2 focus:ring-[#5D87FF] focus:border-transparent transition-all"
+                            placeholder="Contoh: Jl. Mawar No. 5, RT 03/RW 02, Kel. Menteng, Kec. Menteng, Jakarta Pusat 10310"
+                            rows={3}
+                        ></textarea>
+                    </div>
                 </div>
 
                 {/* Right Column: Financial & Other Info */}
