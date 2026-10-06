@@ -2529,15 +2529,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ projects, setProject
                         onTouchStart={(e) => {
                             const touch = e.touches[0];
                             (e.currentTarget as any).touchStartX = touch.clientX;
+                            (e.currentTarget as any).touchStartY = touch.clientY;
                         }}
                         onTouchEnd={(e) => {
                             const touchEndX = e.changedTouches[0].clientX;
+                            const touchEndY = e.changedTouches[0].clientY;
                             const touchStartX = (e.currentTarget as any).touchStartX;
-                            if (touchStartX === undefined) return;
-                            const diff = touchStartX - touchEndX;
+                            const touchStartY = (e.currentTarget as any).touchStartY;
+                            if (touchStartX === undefined || touchStartY === undefined) return;
+
+                            const diffX = touchStartX - touchEndX;
+                            const diffY = touchStartY - touchEndY;
+
+                            // Only trigger swipe if horizontal movement is significantly larger than vertical
+                            // This prevents accidental year changes when scrolling vertically
+                            if (Math.abs(diffX) < Math.abs(diffY)) return;
+                            if (Math.abs(diffX) < 50) return;
 
                             // Swipe Left (Next)
-                            if (diff > 50) {
+                            if (diffX > 50) {
                                 if (viewMode === 'Year') {
                                     setSelectedYear(prev => prev + 1);
                                 } else if (viewMode === 'Day') {
@@ -2549,7 +2559,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ projects, setProject
                                 }
                             }
                             // Swipe Right (Prev)
-                            else if (diff < -50) {
+                            else if (diffX < -50) {
                                 if (viewMode === 'Year') {
                                     setSelectedYear(prev => prev - 1);
                                 } else if (viewMode === 'Day') {

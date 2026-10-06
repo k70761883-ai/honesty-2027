@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { Profile, Gallery } from '../../../types';
+import { Profile, Gallery, REGIONS } from '../../../types';
 import Modal from '../../../shared/ui/Modal';
 import { UploadIcon, TrashIcon, LinkIcon, MapPinIcon, PlusIcon, FileTextIcon, CameraIcon } from '../../../constants';
 import { createGallery, listGalleries, uploadGalleryImages, deleteGallery, updateGallery, uploadCoverImage } from '../../../services/galleries';
@@ -9,6 +9,14 @@ interface GalleryUploadProps {
     userProfile: Profile;
     showNotification: (message: string) => void;
 }
+
+// Booking links per region configuration
+const BOOKING_LINKS_BY_REGION = [
+    { value: '', label: 'Gunakan Default (berdasarkan wilayah)' },
+    { value: 'vendor', label: 'Vendor' },
+    { value: 'jabodetabek', label: 'Jabodetabek' },
+    { value: 'banten', label: 'Banten' },
+];
 
 const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotification }) => {
     const [galleries, setGalleries] = useState<Gallery[]>([]);
@@ -193,6 +201,36 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
             booking_link: gallery.booking_link || ''
         });
         setIsEditModalOpen(true);
+    };
+
+    const handleBookingLinkSelect = (regionValue: string) => {
+        if (!regionValue) {
+            setEditGallery(prev => ({ ...prev, booking_link: '' }));
+            return;
+        }
+        const path = window.location.pathname.replace(/index\.html$/, '');
+        const bookingUrl = `${window.location.origin}${path}#/public-booking?region=${regionValue}`;
+        setEditGallery(prev => ({ ...prev, booking_link: bookingUrl }));
+    };
+
+    const getSelectedRegionValue = (bookingLink: string): string => {
+        if (!bookingLink) return '';
+        const path = window.location.pathname.replace(/index\.html$/, '');
+        const baseUrl = `${window.location.origin}${path}#/public-booking?region=`;
+        if (bookingLink.startsWith(baseUrl)) {
+            return bookingLink.replace(baseUrl, '');
+        }
+        return '';
+    };
+
+    const handleNewBookingLinkSelect = (regionValue: string) => {
+        if (!regionValue) {
+            setNewGallery(prev => ({ ...prev, booking_link: '' }));
+            return;
+        }
+        const path = window.location.pathname.replace(/index\.html$/, '');
+        const bookingUrl = `${window.location.origin}${path}#/public-booking?region=${regionValue}`;
+        setNewGallery(prev => ({ ...prev, booking_link: bookingUrl }));
     };
 
     const handleEditGallery = async (e: React.FormEvent) => {
@@ -435,6 +473,23 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                     </div>
 
                     <div className="input-group">
+                        <label htmlFor="newLinkSelect" className="input-label">Tautan Booking & Paket per Wilayah</label>
+                        <select
+                            id="newLinkSelect"
+                            value={getSelectedRegionValue(newGallery.booking_link)}
+                            onChange={(e) => handleNewBookingLinkSelect(e.target.value)}
+                            className="input-field"
+                        >
+                            {BOOKING_LINKS_BY_REGION.map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-brand-text-secondary mt-1 pl-1">Pilih wilayah untuk otomatis mengisi tautan booking di bawah.</p>
+                    </div>
+
+                    <div className="input-group">
                         <input
                             type="url"
                             id="newLink"
@@ -518,6 +573,23 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                             placeholder=" "
                         />
                         <label htmlFor="editDesc" className="input-label">Deskripsi Opsional</label>
+                    </div>
+
+                    <div className="input-group">
+                        <label htmlFor="editLinkSelect" className="input-label">Tautan Booking & Paket per Wilayah</label>
+                        <select
+                            id="editLinkSelect"
+                            value={getSelectedRegionValue(editGallery.booking_link)}
+                            onChange={(e) => handleBookingLinkSelect(e.target.value)}
+                            className="input-field"
+                        >
+                            {BOOKING_LINKS_BY_REGION.map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-brand-text-secondary mt-1 pl-1">Pilih wilayah untuk otomatis mengisi tautan booking di bawah.</p>
                     </div>
 
                     <div className="input-group">
