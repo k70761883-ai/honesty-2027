@@ -101,7 +101,7 @@ const Homepage: React.FC = () => {
                         <NavigationCard
                             title="Form Lead Baru"
                             description="Formulir untuk menambah lead potensial baru"
-                            link="#/public-lead-form/VEN001"
+                            link="#/public-lead-form"
                             icon={<UserCheckIcon className="w-6 h-6" />}
                         />
                         <NavigationCard

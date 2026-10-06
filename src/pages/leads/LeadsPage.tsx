@@ -531,9 +531,9 @@ export const Leads: React.FC<LeadsProps> = ({
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
     const activeLeadFilterCount = (sourceFilter !== 'all' ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
-    const publicLeadFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-lead-form/VEN001`, []);
-    const publicBookingFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-booking/VEN001`, []);
-    const publicPackagesUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-packages/VEN001`, []);
+    const publicLeadFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-lead-form/${userProfile.id}`, [userProfile.id]);
+    const publicBookingFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-booking/${userProfile.id}`, [userProfile.id]);
+    const publicPackagesUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-packages/${userProfile.id}`, [userProfile.id]);
 
     useEffect(() => {
         if (isShareModalOpen && typeof (window as any).QRCode !== 'undefined') {

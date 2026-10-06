@@ -262,6 +262,7 @@ select {
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
   background-color: var(--color-surface);
+  color: inherit;
   transition: all 0.2s;
 }
 
@@ -2108,3 +2109,29 @@ body {
   }
 }
 
+/* ── Dark Container Form Overrides ──────────────────────────────────────────
+   Ensure inputs/selects/textareas inside dark backgrounds keep their
+   explicitly set bg and text colors (e.g. PublicLeadForm, dark modals).
+   ─────────────────────────────────────────────────────────────────────────── */
+.bg-zinc-950 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+.bg-zinc-950 textarea,
+.bg-zinc-950 select {
+  background-color: rgb(24 24 27);
+  color: white;
+}
+
+.bg-zinc-950 input.bg-zinc-900:not([type="checkbox"]):not([type="radio"]),
+.bg-zinc-950 textarea.bg-zinc-900,
+input.bg-zinc-900:not([type="checkbox"]):not([type="radio"]),
+textarea.bg-zinc-900,
+select.bg-zinc-900 {
+  background-color: rgb(24 24 27) !important;
+  color: white !important;
+}
+
+input.bg-zinc-800:not([type="checkbox"]):not([type="radio"]),
+textarea.bg-zinc-800,
+select.bg-zinc-800 {
+  background-color: rgb(39 39 42) !important;
+  color: white !important;
+}
