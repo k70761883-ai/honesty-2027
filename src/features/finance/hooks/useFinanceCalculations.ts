@@ -388,14 +388,15 @@ export function useFinanceCalculations({
                 .filter(t => t.type === TransactionType.INCOME)
                 .reduce((sum, t) => sum + t.amount, 0);
 
+            // Semua pengeluaran yang di-tag ke acara ini dihitung sebagai biaya produksi
             const totalCost = relevantTransactions
-                .filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category))
+                .filter(t => t.type === TransactionType.EXPENSE)
                 .reduce((sum, t) => sum + t.amount, 0);
 
             const totalCustomCosts = clientProjectsInMonth.reduce((sum, p) => sum + (p.customCosts?.reduce((s, c) => s + c.amount, 0) || 0), 0);
-            // Hitung Transport dari transaksi aktual berkategori Transport/Transportasi
+            // Hitung Transport dari transaksi aktual yang di-tag ke acara
             const totalTransportCosts = relevantTransactions
-                .filter(t => t.type === TransactionType.EXPENSE && (t.category === 'Transport' || t.category === 'Transportasi'))
+                .filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category) && t.category.toLowerCase().includes('transport'))
                 .reduce((sum, t) => sum + t.amount, 0);
             // Harga package = total tagihan dikurangi biaya tambahan dan transport
             const totalPackageRevenue = clientProjectsInMonth.reduce((sum, p) => sum + (p.totalCost - (p.customCosts?.reduce((s, c) => s + c.amount, 0) || 0)), 0) - totalTransportCosts;

@@ -28,7 +28,8 @@ const ClientProfitabilityReport: React.FC<ClientProfitabilityReportProps> = ({
     onAddTransaction,
 }) => {
     const clientIncome = transactions.filter(t => t.type === TransactionType.INCOME);
-    const clientCost = transactions.filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category));
+    // Semua pengeluaran yang di-tag ke acara ini dihitung sebagai biaya produksi
+    const clientCost = transactions.filter(t => t.type === TransactionType.EXPENSE);
     const totalIncome = clientIncome.reduce((sum, t) => sum + t.amount, 0);
     const totalCost = clientCost.reduce((sum, t) => sum + t.amount, 0);
     const profit = totalIncome - totalCost;
