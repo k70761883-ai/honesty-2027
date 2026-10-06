@@ -26,6 +26,7 @@ import Login from "../pages/auth/LoginPage";
 
 // Lazy-loaded public route components
 const VendorPublicProfile = lazy(() => import("../pages/public/VendorPublicProfile"));
+const BioLinkPage = lazy(() => import("../pages/public/BioLinkPage"));
 const PortfolioDetailPage = lazy(() => import("../pages/public/PortfolioDetailPage"));
 const PublicPackages = lazy(() => import("../features/public/components/PublicPackages"));
 const PublicBookingForm = lazy(() => import("../features/public/components/PublicBookingForm"));
@@ -51,6 +52,8 @@ export function isPublicRoutePath(route: string): boolean {
     r === "" ||
     r.startsWith("/login") ||
     r.startsWith("/profile") ||
+    r === "/link" ||
+    r.startsWith("/link/") ||
     r.startsWith("/portfolio/") ||
     r.startsWith("/public-packages") ||
     r.startsWith("/public-booking") ||
@@ -180,6 +183,21 @@ export const PublicRoutes: React.FC<PublicRoutesProps> = ({
         }
       >
         <VendorPublicProfile />
+      </Suspense>
+    );
+  }
+
+  if (r === "/link" || r.startsWith("/link/")) {
+    const slug = r.startsWith("/link/") ? r.slice("/link/".length) : undefined;
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-accent"></div>
+          </div>
+        }
+      >
+        <BioLinkPage slug={slug} />
       </Suspense>
     );
   }

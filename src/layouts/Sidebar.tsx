@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { ViewType, User, Profile } from '../types';
+import { Link as LinkIcon } from 'lucide-react';
 import {
   HomeIcon,
   UsersIcon,
@@ -125,6 +126,7 @@ const NAV_MENUS: NavMenuItem[] = [
     section: 'Pengaturan',
     items: [
       { view: ViewType.VENDOR_PROFILE, label: 'Profil Vendor', icon: UserCircleIcon },
+      { view: ViewType.BIO_LINKS, label: 'Link Publik', icon: LinkIcon },
       { view: ViewType.MIGRATION, label: 'Import Data Excel', icon: FileSpreadsheetIcon },
       { view: ViewType.SETTINGS, label: 'Pengaturan Sistem', icon: SettingsIcon },
     ],

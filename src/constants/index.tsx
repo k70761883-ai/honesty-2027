@@ -271,6 +271,7 @@ export const NAV_ITEMS = [
     { view: ViewType.PROMO_CODES, label: 'Voucher', icon: LightbulbIcon },
     { view: ViewType.GALLERY, label: 'Upload Pricelist Publik', icon: ImageIcon },
     { view: ViewType.VENDOR_PROFILE, label: 'Profil Vendor', icon: UserCircleIcon },
+    { view: ViewType.BIO_LINKS, label: 'Link Publik', icon: LinkIcon },
     { view: ViewType.CLIENT_REPORTS, label: 'Testimoni', icon: ChartPieIcon },
     { view: ViewType.SETTINGS, label: 'Pengaturan', icon: SettingsIcon },
 ];

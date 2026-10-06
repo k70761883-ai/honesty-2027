@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutGrid as MoreGridIcon, ChevronDown as ChevronDownIcon } from "lucide-react";
+import { LayoutGrid as MoreGridIcon, ChevronDown as ChevronDownIcon, Link as LinkIcon } from "lucide-react";
 import { ViewType } from "../types";
 import {
   HomeIcon,
@@ -52,6 +52,7 @@ export const MoreMenuSheet: React.FC<{
       label: "Pengaturan",
       items: [
         { view: ViewType.VENDOR_PROFILE, label: "Profil Vendor", icon: UserCircleIcon },
+        { view: ViewType.BIO_LINKS, label: "Link Publik", icon: LinkIcon },
         { view: ViewType.MIGRATION, label: "Import Data Excel", icon: FileSpreadsheetIcon },
         { view: ViewType.SETTINGS, label: "Pengaturan", icon: SettingsIcon },
       ],
@@ -198,6 +199,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       case ViewType.SETTINGS:
         import("../pages/settings/SettingsPage");
         break;
+      case ViewType.BIO_LINKS:
+        import("../pages/admin/BioLinksPage");
+        break;
       default:
         break;
     }
@@ -220,6 +224,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
     ViewType.CLIENT_REPORTS,
     ViewType.CALENDAR,
     ViewType.SETTINGS,
+    ViewType.BIO_LINKS,
   ];
   const isMoreActive = moreViews.includes(activeView);
 

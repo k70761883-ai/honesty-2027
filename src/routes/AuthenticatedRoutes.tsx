@@ -52,6 +52,7 @@ const CalendarView = lazy(() =>
   })),
 );
 const VendorProfileAdmin = lazy(() => import("../pages/admin/VendorProfilePage"));
+const BioLinksAdmin = lazy(() => import("../pages/admin/BioLinksPage"));
 const ClientReports = lazy(() => import("../features/clients/components/ClientKPI"));
 const PromoCodes = lazy(() => import("../features/promo/PromoCodes"));
 const Contracts = lazy(() =>
@@ -522,6 +523,9 @@ export const AuthenticatedRoutes: React.FC<AuthenticatedRoutesProps> = ({
 
     case ViewType.VENDOR_PROFILE:
       return <VendorProfileAdmin />;
+
+    case ViewType.BIO_LINKS:
+      return <BioLinksAdmin />;
 
     case ViewType.CALENDAR:
       return (

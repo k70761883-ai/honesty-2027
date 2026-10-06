@@ -16,6 +16,7 @@ export const ROUTE_PATH_MAP: Partial<Record<ViewType, string>> = {
   [ViewType.CLIENT_REPORTS]: "client-reports",
   [ViewType.SETTINGS]: "settings",
   [ViewType.VENDOR_PROFILE]: "vendor-profile",
+  [ViewType.BIO_LINKS]: "bio-links",
   [ViewType.INVOICES]: "invoices",
 };
 
@@ -43,6 +44,7 @@ export const ROUTE_TO_VIEW_MAP: Record<string, ViewType> = {
   "laporan-pengantin": ViewType.CLIENT_REPORTS,
   settings: ViewType.SETTINGS,
   "vendor-profile": ViewType.VENDOR_PROFILE,
+  "bio-links": ViewType.BIO_LINKS,
   invoices: ViewType.INVOICES,
 };
 

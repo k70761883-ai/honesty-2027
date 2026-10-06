@@ -18,4 +18,9 @@ describe('resolveViewFromPath', () => {
     expect(resolveViewFromPath('Laporan Pengantin')).toBe(ViewType.CLIENT_REPORTS);
     expect(resolveViewFromPath('Laporan Klien')).toBe(ViewType.CLIENT_REPORTS);
   });
+
+  it('resolves the public link management route', () => {
+    expect(resolveViewFromPath('bio-links')).toBe(ViewType.BIO_LINKS);
+    expect(resolveViewFromPath(ViewType.BIO_LINKS)).toBe(ViewType.BIO_LINKS);
+  });
 });

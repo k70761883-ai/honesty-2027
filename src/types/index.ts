@@ -66,6 +66,7 @@ export enum ViewType {
   SETTINGS = 'Pengaturan',
   CONTRACTS = 'Kontrak',
   VENDOR_PROFILE = 'Profil Vendor',
+  BIO_LINKS = 'Link Publik',
   INVOICES = 'Daftar Invoice',
   MIGRATION = 'Migrasi & Import Data',
 }
@@ -680,6 +681,26 @@ export interface VendorProfile {
   partners?: VendorProfilePartner[];
   videos?: VendorProfileVideo[];
   created_at: string;
+  updated_at: string;
+}
+
+export interface BioLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface BioLinkPage {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string;
+  whatsapp_number: string;
+  whatsapp_label: string;
+  avatar_url: string;
+  cover_url: string;
+  links: BioLink[];
+  is_published: boolean;
   updated_at: string;
 }
 
