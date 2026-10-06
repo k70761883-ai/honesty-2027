@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Project, Profile, Package, Client } from '../../../types';
 import InvoiceDocument from '../../finance/components/InvoiceDocument';
-import PDFViewer from '../../../shared/ui/PDFViewer';
-import { generatePDFBlob } from '../../../shared/utils/pdfUtils';
 import { DownloadIcon } from '../../../constants';
 import { getProjectWithRelations } from '../../../services/projects';
 import { getClient } from '../../../services/clients';
@@ -24,9 +22,6 @@ const PublicInvoice: React.FC<PublicInvoiceProps> = ({ projectId }) => {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
 
     useEffect(() => {
         if (!projectId) {
@@ -81,28 +76,6 @@ const PublicInvoice: React.FC<PublicInvoiceProps> = ({ projectId }) => {
         fetchData();
         return () => { cancelled = true; };
     }, [projectId]);
-
-    useEffect(() => {
-        if (project && profile && !loading) {
-            const timer = setTimeout(() => {
-                handleGeneratePreview();
-            }, 800);
-            return () => clearTimeout(timer);
-        }
-    }, [project, profile, loading]);
-
-    const handleGeneratePreview = async () => {
-        if (!project) return;
-        setIsGenerating(true);
-        try {
-            const blob = await generatePDFBlob('invoice-document', `invoice-${project.id.slice(-8)}.pdf`);
-            setPdfBlob(blob);
-        } catch (err) {
-            console.error('[PublicInvoice] Error generating preview:', err);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
 
     const handleDownloadPDF = async () => {
         const element = document.getElementById('invoice-document');
@@ -225,8 +198,8 @@ const PublicInvoice: React.FC<PublicInvoiceProps> = ({ projectId }) => {
                     </div>
                 </div>
 
-                {/* Hidden Document for PDF Generation */}
-                <div style={{ position: 'fixed', left: 0, top: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none', width: '800px' }}>
+                {/* Use the same invoice document view as the dashboard. */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                     <InvoiceDocument
                         id="invoice-document"
                         project={project}
@@ -234,25 +207,6 @@ const PublicInvoice: React.FC<PublicInvoiceProps> = ({ projectId }) => {
                         packages={packages}
                         client={client ?? undefined}
                     />
-                </div>
-
-                {/* PDF Viewer Canvas */}
-                <div className="bg-brand-surface rounded-none sm:rounded-3xl shadow-none sm:shadow-xl overflow-hidden min-h-[500px]">
-                    {isGenerating && !pdfBlob ? (
-                        <div className="flex flex-col items-center justify-center py-32">
-                            <div className="animate-spin border-4 border-brand-accent/20 border-t-brand-accent rounded-full w-12 h-12 mb-4"></div>
-                            <p className="text-sm font-medium text-brand-text-secondary italic">Menyiapkan pratinjau PDF...</p>
-                        </div>
-                    ) : (
-                        pdfBlob && <PDFViewer pdfBlob={pdfBlob} className="bg-white p-0 rounded-none shadow-none" />
-                    )}
-
-                    {!pdfBlob && !isGenerating && (
-                        <div className="flex flex-col items-center justify-center py-32 text-brand-text-secondary">
-                            <div className="animate-pulse w-48 h-64 bg-slate-800/10 rounded-xl mb-4"></div>
-                            <p className="text-sm font-medium animate-pulse">Memuat pratinjau...</p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Footer info - hidden when printing */}
