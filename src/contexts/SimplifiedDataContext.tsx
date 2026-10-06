@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { normalizeTransaction } from '../services/transactions';
 import { normalizeClient } from '../services/clients';
-import { normalizeProject } from '../services/projects';
 import { normalizeLead } from '../services/leads';
 import { normalizePocket } from '../services/pockets';
 import { normalizeCard } from '../services/cards';
@@ -156,6 +155,12 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
       queryClient.invalidateQueries({ queryKey: ['calendarEvents'] }),
       queryClient.invalidateQueries({ queryKey: ['clientFeedback'] }),
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] }),
+      queryClient.invalidateQueries({ queryKey: ['contracts'] }),
+      queryClient.invalidateQueries({ queryKey: ['promoCodes'] }),
+      queryClient.invalidateQueries({ queryKey: ['profile'] }),
+      queryClient.invalidateQueries({ queryKey: ['teamProjectPayments'] }),
+      queryClient.invalidateQueries({ queryKey: ['teamPaymentRecords'] }),
+      queryClient.invalidateQueries({ queryKey: ['notifications'] }),
     ]);
   }, [queryClient]);
 
@@ -166,8 +171,16 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
     const makeHandler = <T extends { id: string }>(
       queryKey: string,
       normalize: (row: any) => T,
-      options: { sortByDateDesc?: boolean; tempIdPrefixes?: string[]; amountMatchField?: keyof T } = {},
+      options: { sortByDateDesc?: boolean; tempIdPrefixes?: string[]; amountMatchField?: keyof T; invalidateQueryKeys?: string[] } = {},
     ) => (payload: any) => {
+      options.invalidateQueryKeys?.forEach((key) => {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      });
+      if (!queryClient.getQueryData<T[]>([queryKey])) {
+        void queryClient.invalidateQueries({ queryKey: [queryKey] });
+        return;
+      }
+
       queryClient.setQueryData<T[]>([queryKey], (old) => {
         if (!old) return old;
         const ev = payload.eventType;
@@ -212,28 +225,74 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
           sortByDateDesc: true,
           tempIdPrefixes: ['TRN-PAY-', 'TRN-DP-'],
           amountMatchField: 'amount' as keyof Transaction,
+          invalidateQueryKeys: ['dashboardStats'],
         }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' },
-        makeHandler<Client>('clients', normalizeClient))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' },
-        makeHandler<Project>('projects', normalizeProject))
+        makeHandler<Client>('clients', normalizeClient, { invalidateQueryKeys: ['dashboardStats'] }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+        void queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' },
-        makeHandler<Card>('cards', normalizeCard))
+        makeHandler<Card>('cards', normalizeCard, { invalidateQueryKeys: ['dashboardStats'] }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pockets' },
-        makeHandler<FinancialPocket>('pockets', normalizePocket))
+        makeHandler<FinancialPocket>('pockets', normalizePocket, { invalidateQueryKeys: ['dashboardStats'] }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' },
-        makeHandler<Lead>('leads', normalizeLead))
+        makeHandler<Lead>('leads', normalizeLead, { invalidateQueryKeys: ['dashboardStats'] }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' },
-        makeHandler<TeamMember>('teamMembers', normalizeTeamMember))
+        makeHandler<TeamMember>('teamMembers', normalizeTeamMember, { invalidateQueryKeys: ['projects'] }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'packages' },
         makeHandler<Package>('packages', normalizePackage))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'add_ons' },
-        makeHandler<AddOn>('addOns', normalizeAddOn))
+        makeHandler<AddOn>('addOns', normalizeAddOn, { invalidateQueryKeys: ['projects'] }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'client_feedback' },
         makeHandler<ClientFeedback>('clientFeedback', normalizeClientFeedback))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' },
         makeHandler<CalendarEvent>('calendarEvents', normalizeCalendarEvent))
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_add_ons' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_team_assignments' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wedding_day_checklists' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contracts' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'promo_codes' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['promoCodes'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['profile'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_project_payments' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['teamProjectPayments'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_payment_records' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['teamPaymentRecords'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'galleries' }, () => {
+        void queryClient.invalidateQueries();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_portfolios' }, () => {
+        void queryClient.invalidateQueries();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_profiles' }, () => {
+        void queryClient.invalidateQueries();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => {
+        void queryClient.invalidateQueries();
+      })
+      .subscribe((status, subscribeError) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[Realtime] Subscription failed:', status, subscribeError);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

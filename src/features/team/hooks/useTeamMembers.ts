@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 import {
     TeamMember,
     Project,
@@ -325,7 +326,7 @@ export const useTeamMembers = ({
                     }
                 }
                 const path = window.location.pathname.replace(/index\.html$/, '');
-                const url = `${window.location.origin}${path}#/freelancer-portal/${accessId}`;
+                const url = `${window.location.origin}${path}#/freelancer-portal/${toPublicNameSlug(member.name)}`;
                 setQrModalContent({ title: `Portal Tautan untuk ${member.name}`, url });
             } catch {
                 // silent – modal stays closed

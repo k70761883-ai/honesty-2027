@@ -5,6 +5,7 @@ import { getProjectWithRelations } from '../../../services/projects';
 import { getContract } from '../../../services/contracts';
 import { getTransaction } from '../../../services/transactions';
 import { getTeamMemberByPortalAccessId } from '../../../services/teamMembers';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 
 import ClientPortal from '../../clients/components/ClientPortal';
 import PublicGallery from './PublicGallery';
@@ -71,7 +72,8 @@ export const PublicRouter: React.FC<PublicRouterProps> = ({
 
       try {
         // 1. Check in client portal access ID (or ID)
-        const cachedClient = clients.find(c => c.portalAccessId === cleanSlug || c.id === cleanSlug);
+        const matchingClients = clients.filter(c => c.portalAccessId === cleanSlug || c.id === cleanSlug || c.name === cleanSlug || toPublicNameSlug(c.name) === cleanSlug);
+        const cachedClient = matchingClients.length === 1 ? matchingClients[0] : undefined;
         if (cachedClient) {
           if (isMounted) {
             setResolved({ type: 'client', data: cachedClient });
@@ -138,7 +140,8 @@ export const PublicRouter: React.FC<PublicRouterProps> = ({
         }
 
         // 6. Check if it's a freelancer / team portal
-        const cachedMember = teamMembers.find(m => m.portalAccessId === cleanSlug || m.id === cleanSlug);
+        const matchingMembers = teamMembers.filter(m => m.portalAccessId === cleanSlug || m.id === cleanSlug || m.name === cleanSlug || toPublicNameSlug(m.name) === cleanSlug);
+        const cachedMember = matchingMembers.length === 1 ? matchingMembers[0] : undefined;
         if (cachedMember) {
           if (isMounted) {
             setResolved({ type: 'freelancer', data: cachedMember });
@@ -193,6 +196,7 @@ export const PublicRouter: React.FC<PublicRouterProps> = ({
   if (resolved?.type === 'client') {
     return (
       <ClientPortal
+        key={resolved.data.id}
         accessId={resolved.data.portalAccessId || slug}
         clients={clients.length > 0 ? clients : [resolved.data]}
         projects={projects}

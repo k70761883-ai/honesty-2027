@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Eye, Copy, Monitor, UploadCloud, LoaderCircle } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Eye, EyeOff, Copy, Monitor, UploadCloud, LoaderCircle } from 'lucide-react';
 import { Profile, Transaction, Project, User, ViewType, ProjectStatusConfig, SubStatusConfig, Package, ChatTemplate, ChecklistTemplate } from '../../types';
 
 import Modal from '../../shared/ui/Modal';
@@ -8,7 +8,7 @@ import CategoryManager from './components/CategoryManager';
 import { PencilIcon, PlusIcon, Trash2Icon, KeyIcon, UsersIcon, ListIcon, FolderKanbanIcon, FileTextIcon, SettingsIcon, MessageSquareIcon, RefreshCwIcon, NAV_ITEMS, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_PROJECT_TYPES, DEFAULT_EVENT_TYPES, DEFAULT_PACKAGE_CATEGORIES, DEFAULT_PROJECT_STATUS_SUGGESTIONS, DEFAULT_BRIEFING_TEMPLATE, DEFAULT_TERMS_AND_CONDITIONS, DEFAULT_PACKAGE_SHARE_TEMPLATE, DEFAULT_BOOKING_FORM_TEMPLATE, CHAT_TEMPLATES, DEFAULT_BILLING_TEMPLATES, DEFAULT_INVOICE_SHARE_TEMPLATE, DEFAULT_RECEIPT_SHARE_TEMPLATE, DEFAULT_EXPENSE_SHARE_TEMPLATE, DEFAULT_PORTAL_SHARE_TEMPLATE } from '../../constants';
 import { upsertProfile } from '../../services/profile';
 import { uploadGalleryImage } from '../../services/storage';
-import { createUser, updateUser, deleteUser } from '../../services/users';
+import { listUsers, createUser, updateUser, deleteUser } from '../../services/users';
 import { validateTemplate, processTemplate } from '../../services/chatTemplatesOffline';
 import { DEFAULT_CHECKLIST_TEMPLATES } from '../../services/weddingDayChecklist';
 
@@ -1049,6 +1049,99 @@ interface SettingsProps {
     currentUser: User | null;
 }
 
+interface TemplateEditorProps {
+    id: string;
+    label: string;
+    value: string;
+    rows: number;
+    defaultValue: string;
+    helper?: React.ReactNode;
+    onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    onUseExample: () => void;
+    onSave: () => void;
+    isSaving: boolean;
+}
+
+const TemplateEditor: React.FC<TemplateEditorProps> = ({
+    id,
+    label,
+    value,
+    rows,
+    defaultValue,
+    helper,
+    onChange,
+    onUseExample,
+    onSave,
+    isSaving,
+}) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const savedValue = value.trim();
+    const previewSource = savedValue || defaultValue.trim();
+    const previewLine = previewSource.split(/\r?\n/).find(line => line.trim()) || 'Belum ada isi template';
+    const preview = savedValue ? previewLine : `Belum diatur. Contoh: ${previewLine}`;
+
+    useEffect(() => {
+        const textarea = textareaRef.current;
+        if (!isEditing || !textarea) return;
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+    }, [isEditing, value]);
+
+    return (
+        <section className="rounded-xl border border-brand-border bg-brand-bg/30 p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <h5 className="text-xs sm:text-sm font-semibold text-brand-text-light">{label}</h5>
+                    <p className="mt-1 truncate text-[10px] sm:text-xs text-brand-text-secondary" title={preview}>
+                        {preview}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    aria-expanded={isEditing}
+                    onClick={() => setIsEditing(open => !open)}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-border px-3 py-2 text-xs font-semibold text-brand-text-primary transition-colors hover:bg-brand-bg"
+                >
+                    <PencilIcon className="h-3.5 w-3.5" />
+                    {isEditing ? 'Tutup' : 'Edit'}
+                </button>
+            </div>
+            {isEditing && (
+                <div className="mt-3 border-t border-brand-border/70 pt-3">
+                    <div className="input-group !mt-0">
+                        <textarea
+                            ref={textareaRef}
+                            id={id}
+                            name={id}
+                            value={value}
+                            onChange={onChange}
+                            className="input-field"
+                            placeholder=" "
+                            rows={rows}
+                        />
+                        <label htmlFor={id} className="input-label">{label}</label>
+                    </div>
+                    {helper && <p className="mt-1 text-xs text-brand-text-secondary">{helper}</p>}
+                    <button type="button" onClick={onUseExample} className="mt-2 text-xs text-brand-accent hover:underline">
+                        + Gunakan contoh
+                    </button>
+                    <div className="mt-3 flex justify-end">
+                        <button
+                            type="button"
+                            disabled={isSaving}
+                            onClick={onSave}
+                            className="button-primary inline-flex min-w-24 items-center justify-center px-4 py-2 text-xs font-semibold"
+                        >
+                            {isSaving ? 'Menyimpan...' : savedValue ? 'Update' : 'Simpan'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+};
+
 const emptyUserForm = {
     fullName: '',
     email: '',
@@ -1337,8 +1430,37 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
+    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+    const [usersLoadAttempted, setUsersLoadAttempted] = useState(false);
+    const [usersLoadError, setUsersLoadError] = useState('');
     const [uploadingBackground, setUploadingBackground] = useState<'clientDetail' | 'eventDetail' | 'bookingForm' | 'portalPengantin' | 'leadForm' | null>(null);
     const [didInitProjectStatuses, setDidInitProjectStatuses] = useState(false);
+
+    type TemplateSettingKey =
+        | 'termsAndConditions'
+        | 'packageShareTemplate'
+        | 'bookingFormTemplate'
+        | 'invoiceShareTemplate'
+        | 'receiptShareTemplate'
+        | 'expenseShareTemplate'
+        | 'portalShareTemplate';
+
+    const handleTemplateSave = async (key: TemplateSettingKey) => {
+        if (isSaving) return;
+        setIsSaving(true);
+        setSaveError('');
+        try {
+            const updated = await upsertProfile({ id: profile.id, [key]: profile[key] } as Partial<Profile> & { id: string });
+            setProfile(current => ({ ...current, [key]: updated[key] }));
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
+        } catch (err: any) {
+            console.error(`[Settings] Save ${key} failed:`, err);
+            setSaveError(err?.message || 'Gagal menyimpan template.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     useEffect(() => {
         try {
@@ -1350,6 +1472,27 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
         } catch (e) {
         }
     }, []);
+
+    const loadManagedUsers = useCallback(async () => {
+        if (currentUser?.role !== 'Admin') return;
+        setUsersLoadAttempted(true);
+        setIsLoadingUsers(true);
+        setUsersLoadError('');
+        try {
+            setUsers(await listUsers());
+        } catch (error: any) {
+            console.error('[Settings] Failed to load users:', error);
+            setUsersLoadError(error?.message || 'Gagal memuat daftar pengguna.');
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    }, [currentUser?.role, setUsers]);
+
+    useEffect(() => {
+        if (activeTab === 'users' && currentUser?.role === 'Admin' && !usersLoadAttempted) {
+            void loadManagedUsers();
+        }
+    }, [activeTab, currentUser?.role, usersLoadAttempted, loadManagedUsers]);
 
     // State for category management
     const [incomeCategoryInput, setIncomeCategoryInput] = useState('');
@@ -1367,8 +1510,11 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [userModalMode, setUserModalMode] = useState<'add' | 'edit'>('add');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [detailUser, setDetailUser] = useState<User | null>(null);
     const [userForm, setUserForm] = useState(emptyUserForm);
     const [userFormError, setUserFormError] = useState('');
+    const [showUserPassword, setShowUserPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1484,6 +1630,8 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
     const handleOpenUserModal = (mode: 'add' | 'edit', user: User | null = null) => {
         setUserModalMode(mode);
         setSelectedUser(user);
+        setShowUserPassword(false);
+        setShowConfirmPassword(false);
         if (mode === 'edit' && user) {
             setUserForm({
                 fullName: user.fullName,
@@ -1505,6 +1653,8 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
         setSelectedUser(null);
         setUserForm(emptyUserForm);
         setUserFormError('');
+        setShowUserPassword(false);
+        setShowConfirmPassword(false);
     };
 
     const handleUserFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -1529,15 +1679,22 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
         if (isSaving) return;
         setUserFormError('');
 
-        if (userForm.password && userForm.password !== userForm.confirmPassword) {
+        const newPassword = userForm.password.trim();
+        const confirmPassword = userForm.confirmPassword.trim();
+
+        if (newPassword && newPassword !== confirmPassword) {
             setUserFormError('Konfirmasi kata sandi tidak cocok.');
+            return;
+        }
+        if (newPassword && newPassword.length < 6) {
+            setUserFormError('Kata sandi baru minimal 6 karakter.');
             return;
         }
 
         setIsSaving(true);
         try {
             if (userModalMode === 'add') {
-                if (!userForm.email || !userForm.password || !userForm.fullName) {
+                if (!userForm.email || !newPassword || !userForm.fullName) {
                     setUserFormError('Nama, email, dan kata sandi wajib diisi.');
                     return;
                 }
@@ -1553,7 +1710,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
                 const newUserData = {
                     fullName: userForm.fullName,
                     email: userForm.email,
-                    password: userForm.password,
+                    password: newPassword,
                     role: userForm.role,
                     permissions: userForm.role === 'Member' ? userForm.permissions : undefined,
                 };
@@ -1571,10 +1728,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
                     role: userForm.role,
                     permissions: userForm.role === 'Member' ? userForm.permissions : undefined,
                 };
-                if (userForm.password) {
-                    updateData.password = userForm.password;
-                }
-
+                if (newPassword) updateData.password = newPassword;
                 const updated = await updateUser(selectedUser.id, updateData);
                 setUsers(prev => prev.map(u => u.id === selectedUser.id ? updated : u));
             }
@@ -1995,45 +2149,94 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
                                         <p className="text-xs md:text-sm text-brand-text-secondary">Pilih warna yang mewakili merek Anda. Warna ini akan diterapkan di seluruh aplikasi, portal pengantin, dan dokumen.</p>
                                     </div>
                                 </div>
-                                <div>
-                                    <div className="input-group !mt-6"><textarea id="termsAndConditions" name="termsAndConditions" value={profile.termsAndConditions || ''} onChange={handleInputChange} className="input-field" placeholder=" " rows={15}></textarea><label htmlFor="termsAndConditions" className="input-label">Syarat & Ketentuan (u/ Invoice)</label></div>
-                                    <button type="button" onClick={() => setProfile(p => ({ ...p, termsAndConditions: DEFAULT_TERMS_AND_CONDITIONS }))} className="text-xs text-brand-accent hover:underline mt-2">+ Gunakan contoh</button>
-                                </div>
+                                <TemplateEditor
+                                    id="termsAndConditions"
+                                    label="Syarat & Ketentuan (u/ Invoice)"
+                                    value={profile.termsAndConditions || ''}
+                                    rows={15}
+                                    defaultValue={DEFAULT_TERMS_AND_CONDITIONS}
+                                    onChange={handleInputChange}
+                                    onUseExample={() => setProfile(p => ({ ...p, termsAndConditions: DEFAULT_TERMS_AND_CONDITIONS }))}
+                                    onSave={() => handleTemplateSave('termsAndConditions')}
+                                    isSaving={isSaving}
+                                />
                                 <h4 className="text-sm font-semibold text-brand-text-light mt-6 mb-2">Template WhatsApp (Calon Pengantin/Leads)</h4>
                                 <p className="text-xs text-brand-text-secondary mb-3">Digunakan saat membagikan link Package atau form booking ke Calon Pengantin dari halaman Calon Pengantin.</p>
-                                <div>
-                                    <div className="input-group !mt-2"><textarea id="packageShareTemplate" name="packageShareTemplate" value={profile.packageShareTemplate || ''} onChange={handleInputChange} className="input-field" placeholder=" " rows={5}></textarea><label htmlFor="packageShareTemplate" className="input-label">Template Bagikan Package</label></div>
-                                    <p className="text-xs text-brand-text-secondary mt-1">Placeholder: {`{leadName}`}, {`{companyName}`}, {`{packageLink}`}</p>
-                                    <button type="button" onClick={() => setProfile(p => ({ ...p, packageShareTemplate: DEFAULT_PACKAGE_SHARE_TEMPLATE }))} className="text-xs text-brand-accent hover:underline mt-2">+ Gunakan contoh</button>
-                                </div>
-                                <div className="mt-4">
-                                    <div className="input-group !mt-2"><textarea id="bookingFormTemplate" name="bookingFormTemplate" value={profile.bookingFormTemplate || ''} onChange={handleInputChange} className="input-field" placeholder=" " rows={5}></textarea><label htmlFor="bookingFormTemplate" className="input-label">Template Kirim Form Booking</label></div>
-                                    <p className="text-xs text-brand-text-secondary mt-1">Placeholder: {`{leadName}`}, {`{companyName}`}, {`{bookingFormLink}`}</p>
-                                    <button type="button" onClick={() => setProfile(p => ({ ...p, bookingFormTemplate: DEFAULT_BOOKING_FORM_TEMPLATE }))} className="text-xs text-brand-accent hover:underline mt-2">+ Gunakan contoh</button>
-                                </div>
+                                <TemplateEditor
+                                    id="packageShareTemplate"
+                                    label="Template Bagikan Package"
+                                    value={profile.packageShareTemplate || ''}
+                                    rows={5}
+                                    defaultValue={DEFAULT_PACKAGE_SHARE_TEMPLATE}
+                                    helper={<>Placeholder: {`{leadName}`}, {`{companyName}`}, {`{packageLink}`}</>}
+                                    onChange={handleInputChange}
+                                    onUseExample={() => setProfile(p => ({ ...p, packageShareTemplate: DEFAULT_PACKAGE_SHARE_TEMPLATE }))}
+                                    onSave={() => handleTemplateSave('packageShareTemplate')}
+                                    isSaving={isSaving}
+                                />
+                                <TemplateEditor
+                                    id="bookingFormTemplate"
+                                    label="Template Kirim Form Booking"
+                                    value={profile.bookingFormTemplate || ''}
+                                    rows={5}
+                                    defaultValue={DEFAULT_BOOKING_FORM_TEMPLATE}
+                                    helper={<>Placeholder: {`{leadName}`}, {`{companyName}`}, {`{bookingFormLink}`}</>}
+                                    onChange={handleInputChange}
+                                    onUseExample={() => setProfile(p => ({ ...p, bookingFormTemplate: DEFAULT_BOOKING_FORM_TEMPLATE }))}
+                                    onSave={() => handleTemplateSave('bookingFormTemplate')}
+                                    isSaving={isSaving}
+                                />
                                 <h4 className="text-sm font-semibold text-brand-text-light mt-8 mb-2 border-t border-brand-border pt-6">Template WhatsApp (Keuangan & Dokumen)</h4>
                                 <p className="text-xs text-brand-text-secondary mb-3">Digunakan saat mengirim Invoice, Tanda Terima, Slip Pembayaran, atau share Portal Pengantin via WA.</p>
 
-                                <div>
-                                    <div className="input-group !mt-2"><textarea id="invoiceShareTemplate" name="invoiceShareTemplate" value={profile.invoiceShareTemplate || ''} onChange={handleInputChange} className="input-field min-h-[140px]" placeholder=" " rows={5}></textarea><label htmlFor="invoiceShareTemplate" className="input-label">Template Kirim Invoice</label></div>
-                                    <p className="text-xs text-brand-text-secondary mt-1">Placeholder: {`{clientName}`}, {`{companyName}`}, {`{projectName}`}, {`{totalCost}`}, {`{amountPaid}`}, {`{sisaTagihan}`}, {`{invoiceLink}`}</p>
-                                    <button type="button" onClick={() => setProfile(p => ({ ...p, invoiceShareTemplate: DEFAULT_INVOICE_SHARE_TEMPLATE }))} className="text-xs text-brand-accent hover:underline mt-2">+ Gunakan contoh</button>
-                                </div>
-                                <div className="mt-4">
-                                    <div className="input-group !mt-2"><textarea id="receiptShareTemplate" name="receiptShareTemplate" value={profile.receiptShareTemplate || ''} onChange={handleInputChange} className="input-field min-h-[140px]" placeholder=" " rows={5}></textarea><label htmlFor="receiptShareTemplate" className="input-label">Template Kirim Tanda Terima Pelanggan</label></div>
-                                    <p className="text-xs text-brand-text-secondary mt-1">Placeholder: {`{clientName}`}, {`{companyName}`}, {`{projectName}`}, {`{txDate}`}, {`{txAmount}`}, {`{txMethod}`}, {`{txDesc}`}, {`{receiptLink}`}</p>
-                                    <button type="button" onClick={() => setProfile(p => ({ ...p, receiptShareTemplate: DEFAULT_RECEIPT_SHARE_TEMPLATE }))} className="text-xs text-brand-accent hover:underline mt-2">+ Gunakan contoh</button>
-                                </div>
-                                <div className="mt-4">
-                                    <div className="input-group !mt-2"><textarea id="expenseShareTemplate" name="expenseShareTemplate" value={profile.expenseShareTemplate || ''} onChange={handleInputChange} className="input-field min-h-[140px]" placeholder=" " rows={5}></textarea><label htmlFor="expenseShareTemplate" className="input-label">Template Kirim Slip Pengeluaran</label></div>
-                                    <p className="text-xs text-brand-text-secondary mt-1">Placeholder: {`{targetName}`}, {`{companyName}`}, {`{txDate}`}, {`{txAmount}`}, {`{txMethod}`}, {`{txDesc}`}, {`{receiptLink}`}</p>
-                                    <button type="button" onClick={() => setProfile(p => ({ ...p, expenseShareTemplate: DEFAULT_EXPENSE_SHARE_TEMPLATE }))} className="text-xs text-brand-accent hover:underline mt-2">+ Gunakan contoh</button>
-                                </div>
-                                <div className="mt-4">
-                                    <div className="input-group !mt-2"><textarea id="portalShareTemplate" name="portalShareTemplate" value={profile.portalShareTemplate || ''} onChange={handleInputChange} className="input-field min-h-[140px]" placeholder=" " rows={5}></textarea><label htmlFor="portalShareTemplate" className="input-label">Template Share Portal Pengantin</label></div>
-                                    <p className="text-xs text-brand-text-secondary mt-1">Placeholder: {`{clientName}`}, {`{companyName}`}, {`{portalLink}`}</p>
-                                    <button type="button" onClick={() => setProfile(p => ({ ...p, portalShareTemplate: DEFAULT_PORTAL_SHARE_TEMPLATE }))} className="text-xs text-brand-accent hover:underline mt-2">+ Gunakan contoh</button>
-                                </div>
+                                <TemplateEditor
+                                    id="invoiceShareTemplate"
+                                    label="Template Kirim Invoice"
+                                    value={profile.invoiceShareTemplate || ''}
+                                    rows={5}
+                                    defaultValue={DEFAULT_INVOICE_SHARE_TEMPLATE}
+                                    helper={<>Placeholder: {`{clientName}`}, {`{companyName}`}, {`{projectName}`}, {`{totalCost}`}, {`{amountPaid}`}, {`{sisaTagihan}`}, {`{invoiceLink}`}</>}
+                                    onChange={handleInputChange}
+                                    onUseExample={() => setProfile(p => ({ ...p, invoiceShareTemplate: DEFAULT_INVOICE_SHARE_TEMPLATE }))}
+                                    onSave={() => handleTemplateSave('invoiceShareTemplate')}
+                                    isSaving={isSaving}
+                                />
+                                <TemplateEditor
+                                    id="receiptShareTemplate"
+                                    label="Template Kirim Tanda Terima Pelanggan"
+                                    value={profile.receiptShareTemplate || ''}
+                                    rows={5}
+                                    defaultValue={DEFAULT_RECEIPT_SHARE_TEMPLATE}
+                                    helper={<>Placeholder: {`{clientName}`}, {`{companyName}`}, {`{projectName}`}, {`{txDate}`}, {`{txAmount}`}, {`{txMethod}`}, {`{txDesc}`}, {`{receiptLink}`}</>}
+                                    onChange={handleInputChange}
+                                    onUseExample={() => setProfile(p => ({ ...p, receiptShareTemplate: DEFAULT_RECEIPT_SHARE_TEMPLATE }))}
+                                    onSave={() => handleTemplateSave('receiptShareTemplate')}
+                                    isSaving={isSaving}
+                                />
+                                <TemplateEditor
+                                    id="expenseShareTemplate"
+                                    label="Template Kirim Slip Pengeluaran"
+                                    value={profile.expenseShareTemplate || ''}
+                                    rows={5}
+                                    defaultValue={DEFAULT_EXPENSE_SHARE_TEMPLATE}
+                                    helper={<>Placeholder: {`{targetName}`}, {`{companyName}`}, {`{txDate}`}, {`{txAmount}`}, {`{txMethod}`}, {`{txDesc}`}, {`{receiptLink}`}</>}
+                                    onChange={handleInputChange}
+                                    onUseExample={() => setProfile(p => ({ ...p, expenseShareTemplate: DEFAULT_EXPENSE_SHARE_TEMPLATE }))}
+                                    onSave={() => handleTemplateSave('expenseShareTemplate')}
+                                    isSaving={isSaving}
+                                />
+                                <TemplateEditor
+                                    id="portalShareTemplate"
+                                    label="Template Share Portal Pengantin"
+                                    value={profile.portalShareTemplate || ''}
+                                    rows={5}
+                                    defaultValue={DEFAULT_PORTAL_SHARE_TEMPLATE}
+                                    helper={<>Placeholder: {`{clientName}`}, {`{companyName}`}, {`{portalLink}`}</>}
+                                    onChange={handleInputChange}
+                                    onUseExample={() => setProfile(p => ({ ...p, portalShareTemplate: DEFAULT_PORTAL_SHARE_TEMPLATE }))}
+                                    onSave={() => handleTemplateSave('portalShareTemplate')}
+                                    isSaving={isSaving}
+                                />
                             </div>
 
                             <h3 className="text-sm md:text-lg font-semibold text-brand-text-light border-b border-gray-700/50 pb-2 md:pb-3 mt-6 md:mt-8">Notifikasi</h3>
@@ -2071,13 +2274,23 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
                             <button onClick={() => handleOpenUserModal('add')} className="button-primary inline-flex items-center gap-2 w-full sm:w-auto text-sm md:text-base"><PlusIcon className="w-4 h-4 md:w-5 md:h-5" />Tambah Pengguna</button>
                         </div>
                         <div className="space-y-1.5 md:space-y-3">
-                            {users.map(user => (
+                            {isLoadingUsers ? (
+                                <p className="py-8 text-center text-sm text-brand-text-secondary" role="status">Memuat daftar pengguna...</p>
+                            ) : usersLoadError ? (
+                                <div className="flex flex-col items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-5 text-center" role="alert">
+                                    <p className="text-sm text-rose-700">{usersLoadError}</p>
+                                    <button type="button" onClick={() => setUsersLoadAttempted(false)} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Coba Lagi</button>
+                                </div>
+                            ) : users.length === 0 ? (
+                                <p className="py-8 text-center text-sm text-brand-text-secondary">Belum ada data pengguna.</p>
+                            ) : users.map(user => (
                                 <div key={user.id} className="px-2.5 py-1.5 sm:p-3 md:p-4 bg-brand-bg rounded-lg flex justify-between items-center gap-2 sm:gap-3">
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-sm md:text-base text-brand-text-light truncate leading-tight">{user.fullName}</p>
                                         <p className="text-xs md:text-sm text-brand-text-secondary truncate leading-tight">{user.email} - <span className="font-medium">{user.role}</span></p>
                                     </div>
                                     <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                                        <button onClick={() => setDetailUser(user)} className="p-1 md:p-2 !min-h-0 !h-auto text-brand-text-secondary hover:bg-brand-input rounded-full" title="Detail pengguna" aria-label={`Lihat detail ${user.fullName}`}><Eye className="w-3.5 h-3.5 md:w-5 md:h-5" /></button>
                                         <button onClick={() => handleOpenUserModal('edit', user)} className="p-1 md:p-2 !min-h-0 !h-auto text-brand-text-secondary hover:bg-brand-input rounded-full" title="Edit"><PencilIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /></button>
                                         <button onClick={() => handleDeleteUser(user.id)} className="p-1 md:p-2 !min-h-0 !h-auto text-brand-text-secondary hover:bg-brand-input rounded-full" title="Hapus"><Trash2Icon className="w-3.5 h-3.5 md:w-5 md:h-5" /></button>
                                     </div>
@@ -2239,6 +2452,53 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
                 </main>
             </div>
 
+            <Modal isOpen={!!detailUser} onClose={() => setDetailUser(null)} title="Detail Pengguna" size="md">
+                {detailUser && (
+                    <div className="space-y-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-brand-border bg-brand-bg p-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-secondary">Nama</p>
+                                <p className="mt-1 break-words text-sm font-semibold text-brand-text-primary">{detailUser.fullName}</p>
+                            </div>
+                            <div className="rounded-xl border border-brand-border bg-brand-bg p-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-secondary">Email</p>
+                                <p className="mt-1 break-all text-sm font-semibold text-brand-text-primary">{detailUser.email}</p>
+                            </div>
+                            <div className="rounded-xl border border-brand-border bg-brand-bg p-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-secondary">Peran</p>
+                                <p className="mt-1 text-sm font-semibold text-brand-text-primary">{detailUser.role}</p>
+                            </div>
+                            {detailUser.companyName && (
+                                <div className="rounded-xl border border-brand-border bg-brand-bg p-3">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-text-secondary">Perusahaan</p>
+                                    <p className="mt-1 break-words text-sm font-semibold text-brand-text-primary">{detailUser.companyName}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <section>
+                            <h4 className="text-xs font-bold uppercase tracking-wide text-brand-text-secondary">Izin Akses</h4>
+                            {detailUser.role === 'Admin' ? (
+                                <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">Akses penuh ke seluruh fitur.</p>
+                            ) : (detailUser.permissions?.length || 0) > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {NAV_ITEMS.filter(item => detailUser.permissions?.includes(item.view)).map(item => (
+                                        <span key={item.view} className="rounded-lg border border-brand-border bg-brand-bg px-2.5 py-1 text-xs font-medium text-brand-text-primary">{item.label}</span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="mt-2 text-sm text-brand-text-secondary">Belum ada izin halaman yang diberikan.</p>
+                            )}
+                        </section>
+
+                        <div className="flex justify-end gap-2 border-t border-brand-border pt-4">
+                            <button type="button" onClick={() => setDetailUser(null)} className="button-secondary">Tutup</button>
+                            <button type="button" onClick={() => { const user = detailUser; setDetailUser(null); handleOpenUserModal('edit', user); }} className="button-primary inline-flex items-center gap-2"><PencilIcon className="w-4 h-4" />Edit Pengguna</button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
             <Modal isOpen={isUserModalOpen} onClose={handleCloseUserModal} title={userModalMode === 'add' ? 'Tambah Pengguna Baru' : 'Edit Pengguna'}>
                 <form onSubmit={handleUserFormSubmit} className="space-y-4 form-compact form-compact--ios-scale">
                     {userFormError && <p className="text-red-800 text-sm bg-red-100 p-3 rounded-md">{userFormError}</p>}
@@ -2273,12 +2533,22 @@ const Settings: React.FC<SettingsProps> = ({ profile, setProfile, transactions, 
                         <h5 className="text-sm font-semibold text-brand-text-light mb-3">Keamanan</h5>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="input-group">
-                                <input type="password" name="password" value={userForm.password} onChange={handleUserFormChange} className="input-field" placeholder=" " required={userModalMode === 'add'} />
+                                <div className="relative">
+                                    <input type={showUserPassword ? 'text' : 'password'} name="password" value={userForm.password} onChange={handleUserFormChange} className="input-field pr-11" placeholder=" " autoComplete="new-password" required={userModalMode === 'add'} />
+                                    <button type="button" onClick={() => setShowUserPassword(show => !show)} aria-label={showUserPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'} title={showUserPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-brand-text-secondary hover:text-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent">
+                                        {showUserPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
                                 <label className="input-label">{userModalMode === 'add' ? 'Kata Sandi' : 'Kata Sandi Baru'}</label>
                                 <p className="hidden sm:block text-xs text-brand-text-secondary mt-1">{userModalMode === 'add' ? 'Minimal 6 karakter' : 'Kosongkan jika tidak berubah'}</p>
                             </div>
                             <div className="input-group">
-                                <input type="password" name="confirmPassword" value={userForm.confirmPassword} onChange={handleUserFormChange} className="input-field" placeholder=" " required={!!userForm.password} />
+                                <div className="relative">
+                                    <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={userForm.confirmPassword} onChange={handleUserFormChange} className="input-field pr-11" placeholder=" " autoComplete="new-password" required={!!userForm.password} />
+                                    <button type="button" onClick={() => setShowConfirmPassword(show => !show)} aria-label={showConfirmPassword ? 'Sembunyikan konfirmasi kata sandi' : 'Lihat konfirmasi kata sandi'} title={showConfirmPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-brand-text-secondary hover:text-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent">
+                                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
                                 <label className="input-label">Konfirmasi Kata Sandi</label>
                                 <p className="hidden sm:block text-xs text-brand-text-secondary mt-1">Ketik ulang kata sandi</p>
                             </div>

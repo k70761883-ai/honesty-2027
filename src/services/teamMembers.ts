@@ -1,5 +1,6 @@
 import supabase from '../lib/supabaseClient';
 import { TeamMember, PerformanceNote } from '../types';
+import { publicNamePatternsFromSlug } from '../utils/publicRouting';
 
 const TABLE = 'team_members';
 
@@ -156,16 +157,39 @@ export async function getTeamMemberByPortalAccessId(accessId: string): Promise<T
     .select('*')
     .eq('portal_access_id', cleanId)
     .maybeSingle();
-  if (error || !data) {
-    // Fallback: check by id
-    const { data: byId } = await supabase
+  if (data) return normalize(data);
+  if (error) console.warn('[getTeamMemberByPortalAccessId] portal_access_id lookup failed:', error);
+
+  const { data: byId } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('id', cleanId)
+    .maybeSingle();
+  if (byId) return normalize(byId);
+
+  const patterns = publicNamePatternsFromSlug(cleanId);
+  if (patterns === null) {
+    const { data: byName, error: nameError } = await supabase
       .from(TABLE)
       .select('*')
-      .eq('id', cleanId)
-      .maybeSingle();
-    return byId ? normalize(byId) : null;
+      .eq('name', cleanId)
+      .limit(2);
+    return nameError || byName?.length !== 1 ? null : normalize(byName[0]);
   }
-  return data ? normalize(data) : null;
+  if (patterns.length === 0) return null;
+
+  const matches = new Map<string, any>();
+  for (const pattern of patterns) {
+    const { data: candidates, error: patternError } = await supabase
+      .from(TABLE)
+      .select('*')
+      .ilike('name', pattern)
+      .limit(2);
+    if (patternError) return null;
+    for (const candidate of candidates || []) matches.set(candidate.id, candidate);
+    if (matches.size > 1) return null;
+  }
+  return matches.size === 1 ? normalize([...matches.values()][0]) : null;
 }
 
 export const teamMemberService = {

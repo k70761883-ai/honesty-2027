@@ -5,6 +5,7 @@ import { SendIcon, WhatsappIcon } from '../../../constants';
 import { CHAT_TEMPLATES, cleanPhoneNumber } from '../../../constants';
 import { useChatTemplates } from '../../../hooks/useChatTemplates';
 import { formatIdNumber } from '../../../utils/currency';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 
 interface ChatModalProps {
     isOpen: boolean;
@@ -42,7 +43,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, project, client,
         const sisaTagihan = (project.totalCost || 0) - (project.amountPaid || 0);
         
         const portalBaseUrl = `${window.location.origin}${window.location.pathname}#/portal/`;
-        const portalLink = client.portalAccessId ? `${portalBaseUrl}${client.portalAccessId}` : '';
+        const portalLink = client.name ? `${portalBaseUrl}${toPublicNameSlug(client.name)}` : '';
 
         const processedMessage = processTemplateFunc(template, {
             clientName: client.name,

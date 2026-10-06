@@ -2,6 +2,7 @@ import supabase from '../lib/supabaseClient';
 import { Project, AddOn, PaymentStatus, BookingStatus, AssignedTeamMember } from '../types';
 import { upsertAssignmentsForProject, listAssignmentsByProject } from './projectTeamAssignments';
 import { listChecklistByProject } from './weddingDayChecklist';
+import { publicNamePatternsFromSlug } from '../utils/publicRouting';
 
 const PROJECTS = 'projects';
 const PROJECT_ADD_ONS = 'project_add_ons';
@@ -549,8 +550,39 @@ export async function listProjectsByClientId(clientId: string): Promise<Project[
 
 // Enhanced function to get project with all related data
 export async function getProjectWithRelations(projectId: string): Promise<Project | null> {
-  const { data, error } = await supabase.from(PROJECTS).select('*').eq('id', projectId).maybeSingle();
+  let { data, error } = await supabase.from(PROJECTS).select('*').eq('id', projectId).maybeSingle();
   if (error) throw error;
+
+  if (!data) {
+    const patterns = publicNamePatternsFromSlug(projectId);
+    let resolvedProjects: any[] | null = null;
+    if (patterns === null) {
+      const { data: matchingProjects, error: nameError } = await supabase
+        .from(PROJECTS)
+        .select('*')
+        .eq('project_name', projectId)
+        .limit(2);
+      if (nameError) throw nameError;
+      resolvedProjects = matchingProjects;
+    } else {
+      if (patterns.length === 0) return null;
+      const matches = new Map<string, any>();
+      for (const pattern of patterns) {
+        const { data: candidates, error: patternError } = await supabase
+          .from(PROJECTS)
+          .select('*')
+          .ilike('project_name', pattern)
+          .limit(2);
+        if (patternError) throw patternError;
+        for (const candidate of candidates || []) matches.set(candidate.id, candidate);
+        if (matches.size > 1) return null;
+      }
+      resolvedProjects = [...matches.values()];
+    }
+    if (resolvedProjects?.length !== 1) return null;
+    data = resolvedProjects[0];
+    projectId = data.id;
+  }
   if (!data) return null;
 
   const project = normalizeProject(data);

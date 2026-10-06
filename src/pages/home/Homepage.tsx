@@ -95,7 +95,7 @@ const Homepage: React.FC = () => {
                         <NavigationCard
                             title="Booking Publik"
                             description="Portal booking untuk calon pengantin wilayah Banten"
-                            link="#/public-booking?region=jabodetabek"
+                            link="#/public-booking?region=banten"
                             icon={<CalendarIcon className="w-6 h-6" />}
                         />
                         <NavigationCard
@@ -107,13 +107,13 @@ const Homepage: React.FC = () => {
                         <NavigationCard
                             title="Portal Pengantin"
                             description="Dashboard khusus untuk pengantin mengecek progres acara"
-                            link="#/portal/e87dae9c-5d81-4046-815f-50485b8f3b89"
+                            link="#/portal/contoh-pengantin"
                             icon={<HomeIcon className="w-6 h-6" />}
                         />
                         <NavigationCard
                             title="Freelancer Portal"
                             description="Area kerja untuk freelancer dan vendor eksternal"
-                            link="#/freelancer-portal/581d5995-7f0f-484a-b564-f1510db736fc"
+                            link="#/freelancer-portal/contoh-freelancer"
                             icon={<BriefcaseIcon className="w-6 h-6" />}
                         />
                         <NavigationCard
@@ -131,7 +131,7 @@ const Homepage: React.FC = () => {
                         <NavigationCard
                             title="Invoice PDF"
                             description="Lihat dan download invoice dalam format PDF"
-                            link="#/portal/invoice/dc202cfb-8674-4850-a5d1-52c6192c9ec7"
+                            link="#/portal/invoice/contoh-acara"
                             icon={<FileTextIcon className="w-6 h-6" />}
                         />
                         <NavigationCard

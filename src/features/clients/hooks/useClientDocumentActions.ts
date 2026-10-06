@@ -4,6 +4,7 @@ import {
     generateInvoiceWhatsAppMessage,
     generateReceiptWhatsAppMessage
 } from '../utils/clientWhatsAppTemplates';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 
 export type DocumentToView =
     | { type: 'invoice'; project: Project }
@@ -113,7 +114,7 @@ export const useClientDocumentActions = ({
 
             // 2. Build public invoice link
             const basePath = window.location.pathname.replace(/index\.html$/, '');
-            const publicInvoiceUrl = `${window.location.origin}${basePath}#/portal/invoice/${proj.id}`;
+            const publicInvoiceUrl = `${window.location.origin}${basePath}#/portal/invoice/${toPublicNameSlug(proj.projectName)}`;
 
             // 3. Build WhatsApp template with PDF link
             const text = generateInvoiceWhatsAppMessage(clientForDetail.name, companyName, proj, publicInvoiceUrl);

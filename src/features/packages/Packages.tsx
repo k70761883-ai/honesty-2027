@@ -22,9 +22,7 @@ import {
 } from '../../services/addOns';
 
 import { PackageCard } from './components/PackageCard';
-import { PackageTable } from './components/PackageTable';
 import { PackageModal } from './components/PackageModal';
-import { AddOnSection } from './components/AddOnSection';
 import { DuplicatePackageModal } from './components/DuplicatePackageModal';
 import { SharePackageModal } from './components/SharePackageModal';
 import { PackageGuideModal } from './components/PackageGuideModal';
@@ -39,14 +37,14 @@ import {
     List, 
     Sparkles, 
     Tag, 
-    Filter, 
-    Layers, 
     DollarSign,
-    SlidersHorizontal,
-    ChevronDown,
-    ChevronUp
+    Pencil,
+    Copy,
+    Trash2,
+    MapPin,
+    X
 } from 'lucide-react';
-import { MobileCollapsibleSection } from '../../components/ui/MobileProgressiveDisclosure';
+import RupiahInput from '../../shared/form/RupiahInput';
 
 export interface PackagesProps {
     packages: Package[];
@@ -97,6 +95,159 @@ const toBase64 = (file: File): Promise<string> =>
 const titleCase = (s: string) =>
     s ? s.replace(/\b\w/g, c => c.toUpperCase()) : '';
 
+interface AddOnEditorModalProps {
+    isOpen: boolean;
+    addOn: AddOn | null;
+    regionFilter: string;
+    unionRegions: { value: string; label: string }[];
+    onClose: () => void;
+    onSave: (data: { id?: string; name: string; price: number; region?: string }) => Promise<void>;
+}
+
+const AddOnEditorModal: React.FC<AddOnEditorModalProps> = ({ isOpen, addOn, regionFilter, unionRegions, onClose, onSave }) => {
+    const [formData, setFormData] = useState({ name: '', price: '', region: '' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setFormData(addOn
+            ? { name: addOn.name, price: addOn.price.toString(), region: addOn.region || '' }
+            : { name: '', price: '', region: regionFilter || '' });
+    }, [isOpen, addOn, regionFilter]);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!formData.name.trim() || !formData.price) {
+            alert('Nama Add-On dan Harga wajib diisi.');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await onSave({
+                id: addOn?.id,
+                name: formData.name.trim(),
+                price: Number(formData.price),
+                region: formData.region.trim() ? formData.region.trim().toLowerCase() : undefined,
+            });
+            onClose();
+        } catch (error) {
+            console.error('Error saving add-on:', error);
+            alert('Gagal menyimpan Add-On. Silakan coba lagi.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-[#EAEFF4] shadow-2xl max-w-md w-full p-5 sm:p-6 space-y-4 sm:space-y-5 animate-scale-up my-auto max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between pb-3 border-b border-[#EAEFF4]">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-[#5D87FF]/10 flex items-center justify-center text-[#5D87FF]">
+                            <Sparkles className="w-4 h-4" />
+                        </div>
+                        <h3 className="font-bold text-sm sm:text-base text-[#2A3547]">
+                            {addOn ? 'Edit Layanan Add-On' : 'Tambah Add-On Baru'}
+                        </h3>
+                    </div>
+                    <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#2A3547] hover:bg-[#F4F6F9]">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 pr-1">
+                    <div>
+                        <label className="block text-xs font-bold text-[#2A3547] mb-1.5 uppercase tracking-wider">Nama Layanan Add-On</label>
+                        <input
+                            type="text"
+                            required
+                            value={formData.name}
+                            onChange={event => setFormData(prev => ({ ...prev, name: event.target.value }))}
+                            placeholder="Contoh: Drone Pilot, Extra Jam, Live Streaming..."
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-sm text-[#2A3547] outline-none transition-all placeholder:text-[#5A6A85]/50"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-[#2A3547] mb-1.5 uppercase tracking-wider">Harga (IDR)</label>
+                        <RupiahInput
+                            value={formData.price}
+                            onChange={raw => setFormData(prev => ({ ...prev, price: raw }))}
+                            placeholder="Contoh: 1.500.000"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-sm text-[#2A3547] outline-none transition-all placeholder:text-[#5A6A85]/50 font-semibold"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-[#2A3547] mb-1.5 uppercase tracking-wider">Wilayah (Opsional)</label>
+                        <input
+                            type="text"
+                            list="catalog-addon-regions"
+                            value={formData.region}
+                            onChange={event => setFormData(prev => ({ ...prev, region: event.target.value }))}
+                            placeholder="Kosongkan jika berlaku untuk semua wilayah"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-sm text-[#2A3547] outline-none transition-all placeholder:text-[#5A6A85]/50"
+                        />
+                        <datalist id="catalog-addon-regions">
+                            {unionRegions.map(region => <option key={region.value} value={region.value}>{region.label}</option>)}
+                        </datalist>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                            {unionRegions.map(region => (
+                                <button
+                                    key={region.value}
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({ ...prev, region: region.value }))}
+                                    className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border transition-colors ${formData.region.toLowerCase() === region.value.toLowerCase() ? 'bg-[#5D87FF] text-white border-[#5D87FF]' : 'bg-white border-[#EAEFF4] text-[#5A6A85] hover:border-[#5D87FF]/50'}`}
+                                >
+                                    {region.label}
+                                </button>
+                            ))}
+                            {formData.region && (
+                                <button type="button" onClick={() => setFormData(prev => ({ ...prev, region: '' }))} className="px-2 py-0.5 rounded-lg text-[11px] font-medium border bg-rose-50 border-rose-200 text-rose-600">
+                                    Hapus Wilayah
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex gap-2.5 pt-3">
+                        <button type="button" onClick={onClose} className="flex-1 py-2.5 px-4 rounded-xl border border-[#EAEFF4] bg-white hover:bg-[#F4F6F9] text-[#5A6A85] font-semibold text-xs transition-colors">Batal</button>
+                        <button type="submit" disabled={isSaving} className="flex-1 py-2.5 px-4 rounded-xl bg-[#5D87FF] hover:bg-[#4871e3] text-white font-semibold text-xs transition-all shadow-[0_4px_12px_rgba(93,135,255,0.25)] disabled:opacity-50">
+                            {isSaving ? 'Menyimpan...' : addOn ? 'Simpan Perubahan' : 'Tambahkan'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+interface CatalogItemCardProps {
+    addOn: AddOn;
+    onEdit: (addOn: AddOn) => void;
+    onDelete: (id: string) => void;
+}
+
+const CatalogItemCard: React.FC<CatalogItemCardProps> = ({ addOn, onEdit, onDelete }) => (
+    <article className="min-h-[150px] bg-white rounded-xl sm:rounded-2xl border border-[#EAEFF4] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:border-[#5D87FF]/30 p-3.5 sm:p-4 flex flex-col justify-between gap-3 transition-all">
+        <div>
+            <div className="flex items-start justify-between gap-2 mb-2">
+                <span className="w-8 h-8 rounded-xl bg-[#49BEFF]/10 text-[#49BEFF] flex items-center justify-center flex-shrink-0"><Sparkles className="w-4 h-4" /></span>
+                <span className="text-[10px] font-medium text-[#5A6A85] bg-[#F4F6F9] px-2 py-0.5 rounded-md">{addOn.region || 'Semua Wilayah'}</span>
+            </div>
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#49BEFF]">Add-On</p>
+            <h3 className="font-bold text-sm text-[#2A3547] leading-snug">{addOn.name}</h3>
+        </div>
+        <div className="pt-2 border-t border-[#EAEFF4] flex items-center justify-between gap-2">
+            <p className="font-bold text-sm text-[#5D87FF] truncate">{formatCurrency(addOn.price)}</p>
+            <div className="flex items-center gap-1 flex-shrink-0">
+                <button type="button" onClick={() => onEdit(addOn)} className="w-8 h-8 rounded-lg text-[#5A6A85] hover:text-[#5D87FF] hover:bg-[#5D87FF]/10 flex items-center justify-center" title="Edit Add-On"><Pencil className="w-3.5 h-3.5" /></button>
+                <button type="button" onClick={() => onDelete(addOn.id)} className="w-8 h-8 rounded-lg text-[#5A6A85] hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center" title="Hapus Add-On"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+        </div>
+    </article>
+);
+
 export const Packages: React.FC<PackagesProps> = ({
     packages,
     setPackages,
@@ -109,18 +260,17 @@ export const Packages: React.FC<PackagesProps> = ({
     setInitialAction,
 }) => {
     // ── Main UI States ──
-    const [mainTab, setMainTab] = useState<'packages' | 'addons'>('packages');
     const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
     const [searchTerm, setSearchTerm] = useState('');
     const [regionFilter, setRegionFilter] = useState<string>('');
     const [categoryFilter, setCategoryFilter] = useState<string>('');
-    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-    const activePkgFilterCount = (categoryFilter ? 1 : 0) + (regionFilter ? 1 : 0);
 
     // ── Modal States ──
     const [packageEditMode, setPackageEditMode] = useState<string | null>(null);
     const [packageFormData, setPackageFormData] = useState<any>(emptyPackageForm);
     const [copySourcePkg, setCopySourcePkg] = useState<Package | null>(null);
+    const [isAddOnFormOpen, setIsAddOnFormOpen] = useState(false);
+    const [editingAddOn, setEditingAddOn] = useState<AddOn | null>(null);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
 
@@ -139,8 +289,11 @@ export const Packages: React.FC<PackagesProps> = ({
         for (const p of packages) {
             if (p.region && String(p.region).trim() !== '') set.add(String(p.region));
         }
+        for (const addOn of addOns) {
+            if (addOn.region && String(addOn.region).trim() !== '') set.add(String(addOn.region));
+        }
         return Array.from(set).sort((a, b) => a.localeCompare(b));
-    }, [packages]);
+    }, [packages, addOns]);
 
     const unionRegions = useMemo(() => {
         const baseValues = REGIONS.map(r => r.value.toLowerCase());
@@ -175,6 +328,41 @@ export const Packages: React.FC<PackagesProps> = ({
             return matchesSearch && matchesRegion && matchesCategory;
         });
     }, [packages, searchTerm, regionFilter, categoryFilter]);
+
+    const filteredAddOns = useMemo(() => addOns.filter(addOn => {
+        const matchesSearch = addOn.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesRegion = !regionFilter || (addOn.region && addOn.region.toLowerCase() === regionFilter.toLowerCase());
+        return matchesSearch && matchesRegion && !categoryFilter;
+    }), [addOns, searchTerm, regionFilter, categoryFilter]);
+
+    type CatalogEntry = { kind: 'package'; pkg: Package } | { kind: 'addon'; addOn: AddOn };
+    const catalogEntries = useMemo<CatalogEntry[]>(() => [
+        ...filteredPackages.map(pkg => ({ kind: 'package' as const, pkg })),
+        ...filteredAddOns.map(addOn => ({ kind: 'addon' as const, addOn })),
+    ], [filteredPackages, filteredAddOns]);
+
+    const catalogByRegion = useMemo(() => {
+        const groups = new Map<string, CatalogEntry[]>();
+        catalogEntries.forEach(entry => {
+            const region = (entry.kind === 'package' ? entry.pkg.region : entry.addOn.region) || '';
+            const key = region.trim().toLowerCase();
+            groups.set(key, [...(groups.get(key) || []), entry]);
+        });
+
+        return Array.from(groups.entries())
+            .map(([regionKey, items]) => ({
+                regionKey,
+                label: regionKey
+                    ? unionRegions.find(region => region.value.toLowerCase() === regionKey)?.label || titleCase(regionKey)
+                    : 'Semua Wilayah',
+                items,
+            }))
+            .sort((a, b) => {
+                if (!a.regionKey) return 1;
+                if (!b.regionKey) return -1;
+                return a.label.localeCompare(b.label);
+            });
+    }, [catalogEntries, unionRegions]);
 
     // Grouping by Category for Cards view
     const packagesByCategory = useMemo(() => {
@@ -444,6 +632,21 @@ export const Packages: React.FC<PackagesProps> = ({
         }
     };
 
+    const handleOpenCreateAddOn = () => {
+        setEditingAddOn(null);
+        setIsAddOnFormOpen(true);
+    };
+
+    const handleOpenEditAddOn = (addOn: AddOn) => {
+        setEditingAddOn(addOn);
+        setIsAddOnFormOpen(true);
+    };
+
+    const handleCloseAddOnForm = () => {
+        setIsAddOnFormOpen(false);
+        setEditingAddOn(null);
+    };
+
     return (
         <div className="space-y-4 sm:space-y-6 animate-fade-in pb-12">
             {/* ── Page Header ── */}
@@ -548,255 +751,155 @@ export const Packages: React.FC<PackagesProps> = ({
                 </div>
             </div>
 
-            {/* ── Main View Tabs & Filter Bar ── */}
-            <div className="bg-white p-2.5 sm:p-4 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.03)] border border-[#EAEFF4] space-y-2 sm:space-y-4">
-                {/* Tab Switcher: Paket Layanan vs Add-On Layanan */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5 sm:gap-3 border-b border-[#EAEFF4] pb-2 sm:pb-4">
-                    <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#F4F6F9] rounded-xl sm:flex sm:bg-transparent sm:p-0 sm:gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setMainTab('packages')}
-                            className={`min-h-[40px] py-1 px-1.5 sm:min-h-[40px] sm:py-2 sm:px-4 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 ${
-                                mainTab === 'packages'
-                                    ? 'bg-[#5D87FF] text-white shadow-xs'
-                                    : 'text-[#5A6A85] hover:text-[#2A3547] sm:bg-[#F4F6F9]'
-                            }`}
-                        >
-                            <PackageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                            <span className="sm:hidden">Paket</span>
-                            <span className="hidden sm:inline">Paket Layanan</span>
-                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${
-                                mainTab === 'packages' ? 'bg-white/20 text-white' : 'bg-white text-[#5A6A85]'
-                            }`}>
-                                {packages.length}
-                            </span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setMainTab('addons')}
-                            className={`min-h-[40px] py-1 px-1.5 sm:min-h-[40px] sm:py-2 sm:px-4 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 ${
-                                mainTab === 'addons'
-                                    ? 'bg-[#5D87FF] text-white shadow-xs'
-                                    : 'text-[#5A6A85] hover:text-[#2A3547] sm:bg-[#F4F6F9]'
-                            }`}
-                        >
-                            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                            <span className="sm:hidden">Add-On</span>
-                            <span className="hidden sm:inline">Add-On & Ekstra</span>
-                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${
-                                mainTab === 'addons' ? 'bg-white/20 text-white' : 'bg-white text-[#5A6A85]'
-                            }`}>
-                                {addOns.length}
-                            </span>
-                        </button>
+            {/* ── Unified Package & Add-On Catalog ── */}
+            <section className="bg-white p-3 sm:p-4 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.03)] border border-[#EAEFF4] space-y-3">
+                <div className="flex flex-col xl:flex-row xl:items-center gap-2.5">
+                    <div className="relative min-w-0 flex-1">
+                        <Search className="w-4 h-4 text-[#5A6A85] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="search"
+                            value={searchTerm}
+                            onChange={event => setSearchTerm(event.target.value)}
+                            placeholder="Cari paket atau Add-On..."
+                            className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-xs sm:text-sm text-[#2A3547] placeholder-[#5A6A85] outline-none transition-all"
+                        />
                     </div>
 
-                    {/* View Switcher (Only visible for Packages tab) */}
-                    {mainTab === 'packages' && (
-                        <div className="flex items-center gap-1 self-stretch sm:self-auto bg-[#F4F6F9] p-1 rounded-xl border border-[#EAEFF4] w-full sm:w-auto">
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('cards')}
-                                className={`min-h-[36px] sm:min-h-[40px] flex-1 sm:flex-none px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 transition-all touch-manipulation cursor-pointer ${
-                                    viewMode === 'cards'
-                                        ? 'bg-white text-[#5D87FF] shadow-xs'
-                                        : 'text-[#5A6A85] hover:text-[#2A3547]'
-                                }`}
-                                title="Tampilan Kartu"
-                            >
-                                <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                <span>Kartu</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={categoryFilter}
+                            onChange={event => setCategoryFilter(event.target.value)}
+                            className="min-w-0 flex-1 sm:flex-none sm:min-w-[180px] py-2.5 px-3 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-xs font-semibold text-[#2A3547] outline-none cursor-pointer"
+                            aria-label="Filter kategori paket"
+                        >
+                            <option value="">Semua Kategori Paket</option>
+                            {availableCategories.map(category => <option key={category} value={category}>{category}</option>)}
+                        </select>
+
+                        <div className="flex items-center gap-1 bg-[#F4F6F9] p-1 rounded-xl border border-[#EAEFF4]">
+                            <button type="button" onClick={() => setViewMode('cards')} className={`min-h-9 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 ${viewMode === 'cards' ? 'bg-white text-[#5D87FF] shadow-xs' : 'text-[#5A6A85]'}`} title="Tampilan Kartu">
+                                <LayoutGrid className="w-4 h-4" /><span>Kartu</span>
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('table')}
-                                className={`min-h-[36px] sm:min-h-[40px] flex-1 sm:flex-none px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 transition-all touch-manipulation cursor-pointer ${
-                                    viewMode === 'table'
-                                        ? 'bg-white text-[#5D87FF] shadow-xs'
-                                        : 'text-[#5A6A85] hover:text-[#2A3547]'
-                                }`}
-                                title="Tampilan Tabel"
-                            >
-                                <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                <span>Tabel</span>
+                            <button type="button" onClick={() => setViewMode('table')} className={`min-h-9 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 ${viewMode === 'table' ? 'bg-white text-[#5D87FF] shadow-xs' : 'text-[#5A6A85]'}`} title="Tampilan Tabel">
+                                <List className="w-4 h-4" /><span>Tabel</span>
                             </button>
                         </div>
-                    )}
+
+                        <div className="flex w-full sm:w-auto gap-2">
+                            <button type="button" onClick={handleOpenCreatePackage} className="min-h-10 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[#5D87FF] text-white text-xs font-semibold hover:bg-[#4871e3]">
+                                <Plus className="w-4 h-4" /><span>Tambah Paket</span>
+                            </button>
+                            <button type="button" onClick={handleOpenCreateAddOn} className="min-h-10 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[#49BEFF] text-white text-xs font-semibold hover:bg-sky-500">
+                                <Sparkles className="w-4 h-4" /><span>Tambah Add-On</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Sub-Filters for Packages tab */}
-                {mainTab === 'packages' && (
-                    <div className="grid grid-cols-1 md:flex md:flex-row items-stretch md:items-center justify-between gap-2 sm:gap-3 pt-0.5">
-                        {/* Search Input + Mobile Filter Toggle */}
-                        <div className="flex items-center gap-2 min-w-0 md:flex-1 md:min-w-[200px]">
-                            <div className="relative flex-1 min-w-0">
-                                <Search className="w-4 h-4 text-[#5A6A85] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                                <input
-                                    type="search"
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                    placeholder="Cari paket (nama, kategori, tim)..."
-                                    className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-[11px] sm:text-sm text-[#2A3547] placeholder-[#5A6A85] outline-none transition-all"
-                                />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setMobileFiltersOpen(prev => !prev)}
-                                className={`md:hidden inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border text-[11px] font-semibold transition-colors flex-shrink-0 ${
-                                    mobileFiltersOpen || activePkgFilterCount > 0
-                                        ? 'bg-[#5D87FF]/10 border-[#5D87FF]/30 text-[#5D87FF]'
-                                        : 'bg-[#F4F6F9] border-[#EAEFF4] text-[#2A3547]'
-                                }`}
-                            >
-                                <SlidersHorizontal className="w-3.5 h-3.5" />
-                                <span>Filter</span>
-                                {activePkgFilterCount > 0 && (
-                                    <span className="px-1.5 py-0.2 rounded-full bg-[#5D87FF] text-white text-[9px] font-bold">
-                                        {activePkgFilterCount}
-                                    </span>
-                                )}
-                                {mobileFiltersOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                <div className="border-t border-[#EAEFF4] pt-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10px] sm:text-xs font-semibold text-[#5A6A85]">Filter wilayah · Paket dan Add-On</p>
+                        {regionFilter && <span className="text-[10px] sm:text-xs text-[#5A6A85]">{catalogEntries.length} item</span>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <button type="button" onClick={() => setRegionFilter('')} aria-pressed={regionFilter === ''} className={`px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold border whitespace-nowrap ${regionFilter === '' ? 'bg-[#5D87FF] text-white border-[#5D87FF]' : 'bg-white border-[#EAEFF4] text-[#5A6A85] hover:bg-[#F4F6F9]'}`}>
+                            Semua Wilayah
+                        </button>
+                        {unionRegions.map(region => (
+                            <button key={region.value} type="button" onClick={() => setRegionFilter(region.value)} aria-pressed={regionFilter === region.value} className={`px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold border whitespace-nowrap ${regionFilter === region.value ? 'bg-[#5D87FF] text-white border-[#5D87FF]' : 'bg-white border-[#EAEFF4] text-[#5A6A85] hover:bg-[#F4F6F9]'}`}>
+                                {region.label}
                             </button>
-                        </div>
-
-                        {/* Filter by Category & Region */}
-                        <div className={`${mobileFiltersOpen ? 'grid' : 'hidden md:flex'} min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:flex-row md:items-center md:gap-2`}>
-                            {/* Category selector */}
-                            <select
-                                value={categoryFilter}
-                                onChange={e => setCategoryFilter(e.target.value)}
-                                className="w-full min-w-0 py-2 px-2.5 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-[11px] sm:text-xs font-semibold text-[#2A3547] outline-none cursor-pointer transition-all"
-                            >
-                                <option value="">Semua Kategori</option>
-                                {availableCategories.map(c => (
-                                    <option key={c} value={c}>{c}</option>
-                                ))}
-                            </select>
-
-                            {/* Region selector pills with smooth horizontal swipe */}
-                            <div className="min-w-0 flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none -mx-1 px-1">
-                                <button
-                                    type="button"
-                                    onClick={() => setRegionFilter('')}
-                                    className={`px-3 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-semibold transition-all whitespace-nowrap border flex-shrink-0 touch-manipulation cursor-pointer ${
-                                        regionFilter === ''
-                                            ? 'bg-[#5D87FF] text-white border-[#5D87FF] shadow-xs'
-                                            : 'bg-white border-[#EAEFF4] text-[#5A6A85] hover:bg-[#F4F6F9]'
-                                    }`}
-                                >
-                                    Semua Wilayah
-                                </button>
-                                {unionRegions.map(r => (
-                                    <button
-                                        key={r.value}
-                                        type="button"
-                                        onClick={() => setRegionFilter(r.value)}
-                                        className={`px-3 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-semibold transition-all whitespace-nowrap border flex-shrink-0 touch-manipulation cursor-pointer ${
-                                            regionFilter === r.value
-                                                ? 'bg-[#5D87FF] text-white border-[#5D87FF] shadow-xs'
-                                                : 'bg-white border-[#EAEFF4] text-[#5A6A85] hover:bg-[#F4F6F9]'
-                                        }`}
-                                    >
-                                        {r.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        ))}
                     </div>
-                )}
-            </div>
+                </div>
+            </section>
 
-            {/* ── Content View ── */}
-            {mainTab === 'packages' ? (
-                viewMode === 'cards' ? (
-                    // Cards Grid View (Categorized or Direct)
-                    <div className="space-y-6 sm:space-y-8">
-                        {filteredPackages.length === 0 ? (
-                            <div className="py-12 sm:py-16 text-center bg-white rounded-2xl border border-[#EAEFF4] p-6 sm:p-8">
-                                <div className="w-12 h-12 rounded-2xl bg-[#5D87FF]/10 text-[#5D87FF] flex items-center justify-center mx-auto mb-3">
-                                    <PackageIcon className="w-6 h-6" />
+            {catalogEntries.length === 0 ? (
+                <div className="py-12 sm:py-16 text-center bg-white rounded-2xl border border-[#EAEFF4] p-6 sm:p-8">
+                    <div className="w-12 h-12 rounded-2xl bg-[#5D87FF]/10 text-[#5D87FF] flex items-center justify-center mx-auto mb-3"><PackageIcon className="w-6 h-6" /></div>
+                    <h3 className="font-bold text-base text-[#2A3547]">Tidak ada item ditemukan</h3>
+                    <p className="text-xs text-[#5A6A85] mt-1 max-w-sm mx-auto">Coba ubah pencarian, kategori paket, atau wilayah yang dipilih.</p>
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                        <button type="button" onClick={handleOpenCreatePackage} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#5D87FF] text-white text-xs font-semibold"><Plus className="w-3.5 h-3.5" />Tambah Paket</button>
+                        <button type="button" onClick={handleOpenCreateAddOn} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#49BEFF] text-white text-xs font-semibold"><Sparkles className="w-3.5 h-3.5" />Tambah Add-On</button>
+                    </div>
+                </div>
+            ) : viewMode === 'cards' ? (
+                <div className="space-y-5">
+                    {catalogByRegion.map(group => (
+                        <section key={group.regionKey || 'unassigned'} className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAEFF4] pb-2">
+                                <div className="flex items-center gap-2">
+                                    <MapPin className="w-4 h-4 text-[#5D87FF]" />
+                                    <h3 className="font-bold text-sm sm:text-base text-[#2A3547]">{group.label}</h3>
+                                    <span className="rounded-full bg-[#F4F6F9] border border-[#EAEFF4] px-2 py-0.5 text-[10px] font-semibold text-[#5A6A85]">{group.items.length} item</span>
                                 </div>
-                                <h3 className="font-bold text-base text-[#2A3547]">Tidak ada paket ditemukan</h3>
-                                <p className="text-xs text-[#5A6A85] mt-1 max-w-sm mx-auto">
-                                    {searchTerm || regionFilter || categoryFilter
-                                        ? 'Coba sesuaikan kata kunci pencarian atau filter wilayah/kategori Anda.'
-                                        : 'Mulai dengan menambahkan paket penawaran wedding pertama Anda.'}
+                                <p className="text-[10px] sm:text-xs text-[#5A6A85]">
+                                    {group.items.filter(item => item.kind === 'package').length} Paket · {group.items.filter(item => item.kind === 'addon').length} Add-On
                                 </p>
-                                <button
-                                    type="button"
-                                    onClick={handleOpenCreatePackage}
-                                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#5D87FF] text-white text-xs font-semibold shadow-sm hover:bg-[#4871e3] touch-manipulation cursor-pointer"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    <span>Tambah Paket Pertama</span>
-                                </button>
                             </div>
-                        ) : categoryFilter ? (
-                            // When single category is filtered, show a clean 3-col grid
-                            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-5">
-                                {filteredPackages.map(pkg => (
-                                    <PackageCard
-                                        key={pkg.id}
-                                        pkg={pkg}
-                                        onEdit={handleOpenEditPackage}
-                                        onDuplicate={setCopySourcePkg}
-                                        onShare={handleShareSinglePackage}
-                                        onDelete={handleDeletePackage}
-                                    />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                                {group.items.map(item => item.kind === 'package' ? (
+                                    <PackageCard key={`package-${item.pkg.id}`} pkg={item.pkg} onEdit={handleOpenEditPackage} onDuplicate={setCopySourcePkg} onShare={handleShareSinglePackage} onDelete={handleDeletePackage} />
+                                ) : (
+                                    <CatalogItemCard key={`addon-${item.addOn.id}`} addOn={item.addOn} onEdit={handleOpenEditAddOn} onDelete={handleDeleteAddOn} />
                                 ))}
                             </div>
-                        ) : (
-                            // Grouped by Category
-                            Object.entries(packagesByCategory).map(([catName, catPackages]) => (
-                                <div key={catName} className="space-y-3 sm:space-y-4">
-                                    <div className="flex items-center justify-between pb-2 border-b border-[#EAEFF4]">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full bg-[#5D87FF]" />
-                                            <h3 className="font-bold text-sm sm:text-base text-[#2A3547]">
-                                                {catName}
-                                            </h3>
-                                            <span className="px-2 py-0.5 rounded-full bg-[#F4F6F9] border border-[#EAEFF4] text-[#5A6A85] text-[10px] sm:text-xs font-semibold">
-                                                {catPackages.length} paket
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-5">
-                                        {catPackages.map(pkg => (
-                                            <PackageCard
-                                                key={pkg.id}
-                                                pkg={pkg}
-                                                onEdit={handleOpenEditPackage}
-                                                onDuplicate={setCopySourcePkg}
-                                                onShare={handleShareSinglePackage}
-                                                onDelete={handleDeletePackage}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                ) : (
-                    // Table View
-                    <PackageTable
-                        packages={filteredPackages}
-                        onEdit={handleOpenEditPackage}
-                        onDuplicate={setCopySourcePkg}
-                        onDelete={handleDeletePackage}
-                    />
-                )
+                        </section>
+                    ))}
+                </div>
             ) : (
-                // Add-Ons Tab View
-                <AddOnSection
-                    addOns={addOns}
-                    regionFilter={regionFilter}
-                    unionRegions={unionRegions}
-                    onSaveAddOn={handleSaveAddOn}
-                    onDeleteAddOn={handleDeleteAddOn}
-                />
+                <div className="overflow-x-auto rounded-2xl border border-[#EAEFF4] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.03)]">
+                    <table className="w-full min-w-[720px] text-left text-xs">
+                        <thead className="bg-[#F4F6F9] text-[10px] uppercase tracking-wider text-[#5A6A85]">
+                            <tr><th className="px-4 py-3">Nama</th><th className="px-4 py-3">Jenis</th><th className="px-4 py-3">Kategori</th><th className="px-4 py-3">Wilayah</th><th className="px-4 py-3 text-right">Harga</th><th className="px-4 py-3 text-right">Aksi</th></tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#EAEFF4]">
+                            {catalogEntries.map(item => {
+                                const isPackage = item.kind === 'package';
+                                const name = isPackage ? item.pkg.name : item.addOn.name;
+                                const region = isPackage ? item.pkg.region : item.addOn.region;
+                                const price = isPackage ? item.pkg.price : item.addOn.price;
+                                return (
+                                    <tr key={`${item.kind}-${isPackage ? item.pkg.id : item.addOn.id}`} className="hover:bg-[#F8FAFC]">
+                                        <td className="px-4 py-3 font-semibold text-[#2A3547]">{name}</td>
+                                        <td className="px-4 py-3 text-[#5A6A85]">{isPackage ? 'Paket' : 'Add-On'}</td>
+                                        <td className="px-4 py-3 text-[#5A6A85]">{isPackage ? item.pkg.category || 'Umum' : '—'}</td>
+                                        <td className="px-4 py-3 text-[#5A6A85]">{region ? unionRegions.find(option => option.value.toLowerCase() === region.toLowerCase())?.label || titleCase(region) : 'Semua Wilayah'}</td>
+                                        <td className="px-4 py-3 text-right font-semibold text-[#2A3547]">{formatCurrency(price)}</td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex justify-end gap-1">
+                                                {isPackage ? (
+                                                    <>
+                                                        <button type="button" onClick={() => handleOpenEditPackage(item.pkg)} className="p-2 rounded-lg text-[#5A6A85] hover:bg-[#5D87FF]/10 hover:text-[#5D87FF]" title="Edit Paket"><Pencil className="w-4 h-4" /></button>
+                                                        <button type="button" onClick={() => setCopySourcePkg(item.pkg)} className="p-2 rounded-lg text-[#5A6A85] hover:bg-[#5D87FF]/10 hover:text-[#5D87FF]" title="Duplikat Paket"><Copy className="w-4 h-4" /></button>
+                                                        <button type="button" onClick={() => handleShareSinglePackage(item.pkg)} className="p-2 rounded-lg text-[#5A6A85] hover:bg-[#5D87FF]/10 hover:text-[#5D87FF]" title="Bagikan Paket"><Share2 className="w-4 h-4" /></button>
+                                                        <button type="button" onClick={() => handleDeletePackage(item.pkg.id)} className="p-2 rounded-lg text-[#5A6A85] hover:bg-rose-50 hover:text-rose-600" title="Hapus Paket"><Trash2 className="w-4 h-4" /></button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button type="button" onClick={() => handleOpenEditAddOn(item.addOn)} className="p-2 rounded-lg text-[#5A6A85] hover:bg-[#5D87FF]/10 hover:text-[#5D87FF]" title="Edit Add-On"><Pencil className="w-4 h-4" /></button>
+                                                        <button type="button" onClick={() => handleDeleteAddOn(item.addOn.id)} className="p-2 rounded-lg text-[#5A6A85] hover:bg-rose-50 hover:text-rose-600" title="Hapus Add-On"><Trash2 className="w-4 h-4" /></button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             )}
+
+            <AddOnEditorModal
+                isOpen={isAddOnFormOpen}
+                addOn={editingAddOn}
+                regionFilter={regionFilter}
+                unionRegions={unionRegions}
+                onClose={handleCloseAddOnForm}
+                onSave={handleSaveAddOn}
+            />
 
             {/* ── Package Edit/Add Modal ── */}
             {packageEditMode && (

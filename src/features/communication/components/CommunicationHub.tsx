@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Client, Project, Profile } from '../../../types';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 import {
     MessageSquareIcon,
     MailIcon,
@@ -205,7 +206,7 @@ export const CommunicationHub: React.FC<CommunicationHubProps> = ({
 
             // Portal Link
             const portalBaseUrl = `${window.location.origin}${window.location.pathname}#/portal/`;
-            const portalLink = client.portalAccessId ? `${portalBaseUrl}${client.portalAccessId}` : '{portalLink}';
+            const portalLink = client.name ? `${portalBaseUrl}${toPublicNameSlug(client.name)}` : '{portalLink}';
             processed = processed.replace('{portalLink}', portalLink);
 
             if (activeProject.deadlineDate) {

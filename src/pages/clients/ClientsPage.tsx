@@ -34,6 +34,7 @@ import { useClients } from '../../features/clients/hooks/useClients';
 import { ensureOnlineOrNotify } from '../../features/clients/utils/clientHelpers';
 import { exportClientsToCSV } from '../../features/clients/utils/clientExport';
 import { deleteProject as deleteProjectRow } from '../../services/projects';
+import { toPublicNameSlug } from '../../utils/publicRouting';
 
 // Modular Components
 import ClientStatsCards, { StatModalType } from '../../features/clients/components/ClientStatsCards';
@@ -275,7 +276,7 @@ export const Clients: React.FC<ClientsProps> = ({
 
     const handleOpenQrModal = (client: Client) => {
         const path = window.location.pathname.replace(/index\.html$/, '');
-        const url = `${window.location.origin}${path}#/portal/${client.portalAccessId}`;
+        const url = `${window.location.origin}${path}#/portal/${toPublicNameSlug(client.name)}`;
         setQrModalContent({
             title: `Portal QR Code untuk ${client.name}`,
             url,

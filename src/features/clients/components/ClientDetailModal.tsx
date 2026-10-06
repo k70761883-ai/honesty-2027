@@ -413,17 +413,19 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
               <button
                 onClick={() => onEditClient(client)}
-                className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-[#5D87FF]/30 hover:bg-[#5D87FF]/45 border border-blue-200/40 flex items-center justify-center text-blue-100 transition-all active:scale-90"
+                className="h-7 sm:h-9 px-2 inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-[#5D87FF]/30 hover:bg-[#5D87FF]/45 border border-blue-200/40 text-blue-100 text-[9px] sm:text-xs font-semibold whitespace-nowrap transition-all active:scale-90"
                 title="Edit Pengantin"
               >
                 <PencilIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Edit Pengantin</span>
               </button>
               <button
                 onClick={() => onSharePortal(client)}
-                className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-600 border border-emerald-700 flex items-center justify-center text-white transition-all active:scale-90"
+                className="h-7 sm:h-9 px-2 inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-emerald-600 border border-emerald-700 text-white text-[9px] sm:text-xs font-semibold whitespace-nowrap transition-all active:scale-90"
                 title="Bagikan Portal"
               >
                 <Share2Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Bagikan Portal</span>
               </button>
             </div>
           </div>

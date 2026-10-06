@@ -55,11 +55,39 @@ const sourceColors: { [key in ContactChannel]?: string } = {
     [ContactChannel.OTHER]: '#64748b'
 };
 
-const statusConfig: Record<LeadStatus, { color: string, title: string }> = {
-    [LeadStatus.DISCUSSION]: { color: '#3b82f6', title: 'Sedang Diskusi' },
-    [LeadStatus.FOLLOW_UP]: { color: '#8b5cf6', title: 'Menunggu Follow Up' },
-    [LeadStatus.CONVERTED]: { color: '#10b981', title: 'Dikonversi' },
-    [LeadStatus.REJECTED]: { color: '#ef4444', title: 'Ditolak' }
+const statusConfig: Record<LeadStatus, { color: string, softBg: string, badgeClass: string, title: string, surface: string, border: string }> = {
+    [LeadStatus.DISCUSSION]: {
+        color: '#3563E9',
+        softBg: '#ECF2FF',
+        badgeClass: 'bg-[#ECF2FF] text-[#2348C7] border border-[#CFE0FF]',
+        title: 'Diskusi',
+        surface: '#F7FAFF',
+        border: '#D9E5FF',
+    },
+    [LeadStatus.FOLLOW_UP]: {
+        color: '#8B5CF6',
+        softBg: '#F3E8FF',
+        badgeClass: 'bg-[#F3E8FF] text-[#6F38D9] border border-[#E2D0FF]',
+        title: 'Follow Up',
+        surface: '#FAF7FF',
+        border: '#E7D8FF',
+    },
+    [LeadStatus.CONVERTED]: {
+        color: '#14A76C',
+        softBg: '#EAFBF2',
+        badgeClass: 'bg-[#EAFBF2] text-[#0F8C5A] border border-[#CDEEDC]',
+        title: 'Dikonversi',
+        surface: '#F5FFF9',
+        border: '#D2F0E0',
+    },
+    [LeadStatus.REJECTED]: {
+        color: '#EA5A47',
+        softBg: '#FCECEC',
+        badgeClass: 'bg-[#FCECEC] text-[#C63F31] border border-[#F7C8C8]',
+        title: 'Ditolak',
+        surface: '#FFF9F8',
+        border: '#F7D0CC',
+    },
 };
 
 // --- Form Components ---
@@ -348,97 +376,121 @@ const LeadCard: React.FC<{
             draggable
             onDragStart={e => onDragStart(e, lead.id)}
             onClick={onClick}
-            className="p-3 md:p-4 bg-brand-surface rounded-xl cursor-grab border-l-4 shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] leads-card"
-            style={{ borderLeftColor: statusConfig[lead.status].color }}
+            className="group p-3 md:p-4 rounded-2xl cursor-grab border shadow-sm transition-all hover:-translate-y-0.5 active:scale-[0.99] leads-card"
+            style={{
+                borderLeftColor: statusConfig[lead.status].color,
+                borderLeftWidth: '4px',
+                background: statusConfig[lead.status].surface,
+                borderColor: statusConfig[lead.status].border,
+                boxShadow: '0 8px 18px rgba(15, 23, 42, 0.04)',
+            }}
         >
-            <div className="flex justify-between items-start gap-2 leads-card-header">
-                <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm md:text-base text-brand-text-light truncate">{lead.name}</p>
-                    {lead.location && (
-                        <p className="text-xs text-brand-text-secondary mt-0.5 flex items-center gap-1 truncate">
-                            <MapPinIcon className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate">{lead.location}</span>
-                        </p>
-                    )}
+            <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#EEF3FF] to-[#F1F5F9] text-[11px] font-black text-[#3758D1] shrink-0">
+                        {getInitials(lead.name)}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <p className="font-bold text-sm md:text-base text-[#2A3547] truncate">{lead.name}</p>
+                            {isHot && (
+                                <span className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[9px] font-bold text-orange-700" title="Calon Pengantin baru (24 jam terakhir)">
+                                    Baru
+                                </span>
+                            )}
+                            {needsFollowUp && (
+                                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700" title="Perlu Follow Up">
+                                    Follow Up
+                                </span>
+                            )}
+                        </div>
+
+                        {lead.location && (
+                            <div className="mt-1 flex items-center gap-1 text-[11px] text-[#5A6A85] min-w-0">
+                                <MapPinIcon className="w-3 h-3 flex-shrink-0 text-[#6B7280]" />
+                                <span className="truncate">{lead.location}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {isHot && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-orange-100 text-orange-700" title="Calon Pengantin baru (24 jam terakhir)">Baru</span>}
-                    {needsFollowUp && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-700" title="Perlu Follow Up">Follow Up</span>}
+
+                <div className="flex items-center gap-1.5 shrink-0">
                     <button
                         onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                        className="btn-box-edit w-8 h-8 rounded-lg"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#E8EDF5] bg-white text-[#42526B] shadow-sm transition hover:border-[#CCD8F5] hover:text-[#2348C7]"
                         title="Edit"
                     >
                         <PencilIcon className="w-4 h-4 flex-shrink-0" />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        className="btn-box-delete w-8 h-8 rounded-lg"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#EA5A47] text-white shadow-sm transition hover:bg-[#D94F3C]"
                         title="Hapus"
                     >
-                        <Trash2Icon className="w-4 h-4 flex-shrink-0 text-white" />
+                        <Trash2Icon className="w-4 h-4 flex-shrink-0" />
                     </button>
                 </div>
             </div>
 
-            {/* Detail info rows */}
-            <div className="mt-2 space-y-1.5">
+            <div className="mt-3 space-y-2">
                 {lead.eventDate && (
-                    <div className="flex items-center gap-1.5 text-xs text-brand-text-secondary">
-                        <CalendarIcon className="w-3 h-3 flex-shrink-0 text-brand-accent" />
-                        <span className="font-medium text-brand-text-light">Acara:</span>
+                    <div className="flex items-center gap-2 rounded-xl bg-[#F6F8FB] px-2.5 py-1.5 text-[11px] text-[#41506B]">
+                        <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0 text-[#5D87FF]" />
+                        <span className="font-medium text-[#2A3547]">Acara:</span>
                         <span>{new Date(lead.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     </div>
                 )}
-                {/* Desktop extra info */}
-                <div className="hidden sm:block space-y-1.5">
-                    {lead.whatsapp && (
-                        <div className="flex items-center justify-between gap-1.5 text-xs text-brand-text-secondary">
-                            <div className="flex items-center gap-1.5 truncate">
-                                <span className="text-green-800 flex-shrink-0">
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
-                                </span>
-                                <span className="truncate">{lead.whatsapp}</span>
-                            </div>
-                            <a
-                                href={`https://wa.me/${cleanPhoneNumber(lead.whatsapp)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="btn-box-wa px-2 py-0.5 text-[10px] flex-shrink-0"
-                                title="Chat Langsung via WA"
-                            >
-                                Chat WA
-                            </a>
+
+                {lead.whatsapp && (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-[#E3ECF5] bg-[#F9FBFF] px-2.5 py-1.5">
+                        <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-[#5A6A85]">
+                            <span className="text-green-600 flex-shrink-0">
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
+                            </span>
+                            <span className="truncate">{lead.whatsapp}</span>
                         </div>
-                    )}
-                    {lead.address && (
-                        <div className="flex items-start gap-1.5 text-xs text-brand-text-secondary">
-                            <MapPinIcon className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                            <span className="line-clamp-1">{lead.address}</span>
-                        </div>
-                    )}
-                    {lead.notes && (
-                        <p className="text-xs text-brand-text-primary mt-2 pt-2 border-t border-brand-border/50 line-clamp-2">
-                            {lead.notes}
-                        </p>
-                    )}
-                </div>
+                        <a
+                            href={`https://wa.me/${cleanPhoneNumber(lead.whatsapp)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="btn-box-wa px-2 py-1 text-[10px] rounded-lg font-semibold"
+                            title="Chat Langsung via WA"
+                        >
+                            Chat WA
+                        </a>
+                    </div>
+                )}
+
+                {lead.address && (
+                    <div className="flex items-start gap-1.5 text-[11px] text-[#5A6A85]">
+                        <MapPinIcon className="mt-0.5 w-3.5 h-3.5 flex-shrink-0 text-[#6B7280]" />
+                        <span className="line-clamp-2">{lead.address}</span>
+                    </div>
+                )}
+
+                {lead.notes && (
+                    <p className="line-clamp-2 border-t border-[#EEF2F7] pt-2 text-[11px] leading-5 text-[#41506B]">
+                        {lead.notes}
+                    </p>
+                )}
             </div>
 
-            <div className="flex justify-between items-center mt-2 md:mt-3 text-xs text-brand-text-secondary">
-                <span className="flex items-center gap-1.5">
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#EEF2F7] pt-2.5 text-[11px] text-[#5A6A85]">
+                <div className="flex items-center gap-1.5 min-w-0 truncate">
                     {getContactChannelIcon(lead.contactChannel)}
-                    <span className="hidden sm:inline">{getDaysSince(lead.date)}</span>
-                    <span className="sm:hidden">{getDaysSince(lead.date).replace(' lalu', '')}</span>
+                    <span className="truncate">{getDaysSince(lead.date)}</span>
+                </div>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${statusConfig[lead.status].badgeClass}`}>
+                    {statusConfig[lead.status].title}
                 </span>
             </div>
 
-            {/* Mobile Progressive Disclosure Extra */}
-            <div className="sm:hidden" onClick={e => e.stopPropagation()}>
+            <div className="sm:hidden mt-3" onClick={e => e.stopPropagation()}>
                 <MobileExpandableExtra
-                    labelOpen="Lihat Info & WA"
-                    labelClose="Ringkas"
+                    labelOpen="Lihat detail"
+                    labelClose="Sembunyikan"
                     headerRight={renderActions()}
                 >
                     <div className="space-y-1.5 text-xs">
@@ -465,7 +517,7 @@ const LeadCard: React.FC<{
                 </MobileExpandableExtra>
             </div>
 
-            <div className="hidden sm:flex mt-2 md:mt-3 pt-2 md:pt-3 border-t border-brand-border/50 justify-end leads-card-actions">
+            <div className="hidden sm:flex mt-3 pt-3 border-t border-[#EEF2F7] justify-end">
                 {renderActions()}
             </div>
         </div>
@@ -531,8 +583,8 @@ export const Leads: React.FC<LeadsProps> = ({
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
     const activeLeadFilterCount = (sourceFilter !== 'all' ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
-    const publicLeadFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-lead-form/${userProfile.id}`, [userProfile.id]);
-    const publicBookingFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-booking/${userProfile.id}`, [userProfile.id]);
+    const publicLeadFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-lead-form`, []);
+    const publicBookingFormUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-booking`, []);
     const publicPackagesUrl = useMemo(() => `${window.location.origin}${window.location.pathname}#/public-packages/${userProfile.id}`, [userProfile.id]);
 
     useEffect(() => {
@@ -1067,10 +1119,10 @@ export const Leads: React.FC<LeadsProps> = ({
                                 {visibleLeadColumns.map(([status, leadItems]) => {
                                     const statusInfo = statusConfig[status as LeadStatus];
                                     return (
-                                        <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status as LeadStatus)} className="w-80 flex-shrink-0 bg-brand-bg rounded-2xl border border-brand-border flex flex-col leads-column-container">
-                                            <div className="p-4 font-semibold text-brand-text-light border-b-2 flex justify-between items-center sticky top-0 bg-brand-bg/80 backdrop-blur-sm rounded-t-2xl z-10 leads-column-header" style={{ borderColor: statusInfo.color }}>
+                                        <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status as LeadStatus)} className="w-80 flex-shrink-0 rounded-2xl border border-[#EAEFF4] bg-[#F7F9FC] flex flex-col shadow-sm leads-column-container">
+                                            <div className="px-4 py-3 font-semibold text-[#2A3547] border-b flex justify-between items-center sticky top-0 rounded-t-2xl z-10 leads-column-header" style={{ borderColor: statusInfo.border, backgroundColor: statusInfo.softBg }}>
                                                 <span>{statusInfo.title}</span>
-                                                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: statusInfo.color }}>{leadItems.length}</span>
+                                                <span className="inline-flex min-w-7 justify-center rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: statusInfo.color }}>{leadItems.length}</span>
                                             </div>
                                             <div className="p-3 space-y-3 h-auto pr-1">
                                                 {leadItems.map(lead => (
@@ -1223,28 +1275,56 @@ export const Leads: React.FC<LeadsProps> = ({
                                                         <div className="flex items-center justify-end gap-1.5">
                                                             {lead.status === LeadStatus.DISCUSSION && (
                                                                 <>
-                                                                    <button onClick={() => setShareModalState({ type: 'package', lead })} className="btn-box-wa px-2 py-1 text-[10px] hidden sm:inline-flex items-center gap-1" title="Kirim Package WA">
-                                                                        <WhatsappIcon className="w-3 h-3" /><span>Pkg</span>
+                                                                    <button
+                                                                        onClick={() => setShareModalState({ type: 'package', lead })}
+                                                                        className="hidden sm:inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#1EBF5A]"
+                                                                        title="Kirim Package WA"
+                                                                    >
+                                                                        <WhatsappIcon className="w-3 h-3" />
+                                                                        <span>Pkg</span>
                                                                     </button>
-                                                                    <button onClick={() => handleNextStatus(lead.id, lead.status)} className="btn-box-read px-2 py-1 text-[10px] hidden sm:inline-flex items-center gap-1" title="Pindah ke Follow Up">
-                                                                        FU <ChevronRightIcon className="w-3 h-3" />
+                                                                    <button
+                                                                        onClick={() => handleNextStatus(lead.id, lead.status)}
+                                                                        className="hidden sm:inline-flex items-center gap-1 rounded-lg bg-[#5D87FF] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#4570EA]"
+                                                                        title="Pindah ke Follow Up"
+                                                                    >
+                                                                        <span>FU</span>
+                                                                        <ChevronRightIcon className="w-3 h-3" />
                                                                     </button>
                                                                 </>
                                                             )}
                                                             {lead.status === LeadStatus.FOLLOW_UP && (
                                                                 <>
-                                                                    <button onClick={() => setShareModalState({ type: 'booking', lead })} className="btn-box-wa px-2 py-1 text-[10px] hidden sm:inline-flex items-center gap-1" title="Kirim Form Booking WA">
-                                                                        <WhatsappIcon className="w-3 h-3" /><span>Booking</span>
+                                                                    <button
+                                                                        onClick={() => setShareModalState({ type: 'booking', lead })}
+                                                                        className="hidden sm:inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#1EBF5A]"
+                                                                        title="Kirim Form Booking WA"
+                                                                    >
+                                                                        <WhatsappIcon className="w-3 h-3" />
+                                                                        <span>Booking</span>
                                                                     </button>
-                                                                    <button onClick={() => handleOpenModal('convert', lead)} className="btn-box-add px-2 py-1 text-[10px] hidden sm:inline-flex items-center gap-1" title="Konversi">
-                                                                        <CheckCircleIcon className="w-3 h-3" /><span>Konversi</span>
+                                                                    <button
+                                                                        onClick={() => handleOpenModal('convert', lead)}
+                                                                        className="hidden sm:inline-flex items-center gap-1 rounded-lg bg-[#14A76C] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#118E5C]"
+                                                                        title="Konversi"
+                                                                    >
+                                                                        <CheckCircleIcon className="w-3 h-3" />
+                                                                        <span>Konversi</span>
                                                                     </button>
                                                                 </>
                                                             )}
-                                                            <button onClick={() => handleOpenModal('edit', lead)} className="btn-box-edit w-7 h-7 rounded-md" title="Edit">
+                                                            <button
+                                                                onClick={() => handleOpenModal('edit', lead)}
+                                                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#D8E1F0] bg-white text-[#42526B] shadow-sm transition hover:border-[#BFD1F9] hover:text-[#2348C7]"
+                                                                title="Edit"
+                                                            >
                                                                 <PencilIcon className="w-3.5 h-3.5" />
                                                             </button>
-                                                            <button onClick={() => handleDeleteLead(lead.id)} className="btn-box-delete w-7 h-7 rounded-md" title="Hapus">
+                                                            <button
+                                                                onClick={() => handleDeleteLead(lead.id)}
+                                                                className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[#EA5A47] text-white shadow-sm transition hover:bg-[#D94F3C]"
+                                                                title="Hapus"
+                                                            >
                                                                 <Trash2Icon className="w-3.5 h-3.5 text-white" />
                                                             </button>
                                                         </div>

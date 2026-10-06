@@ -3,6 +3,7 @@ import { Client, Project, Profile } from '../../../types';
 import { WhatsappIcon, DEFAULT_BILLING_TEMPLATES } from '../../../constants';
 import { formatCurrency } from '../utils/clientHelpers';
 import { cleanPhoneNumber } from '../../../utils/whatsapp';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 
 export interface BillingChatModalProps {
     isOpen: boolean;
@@ -45,7 +46,7 @@ export const BillingChatModal: React.FC<BillingChatModalProps> = ({
         ).join('\n');
 
         const path = window.location.pathname.replace(/index\.html$/, '');
-        const portalLink = `${window.location.origin}${path}#/portal/${client.portalAccessId}`;
+        const portalLink = `${window.location.origin}${path}#/portal/${toPublicNameSlug(client.name)}`;
 
         const template = BILLING_CHAT_TEMPLATES.find(t => t.id === selectedTemplateId)?.template
             || BILLING_CHAT_TEMPLATES[0]?.template

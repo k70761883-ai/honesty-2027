@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Client, TeamMember, Project, TeamProjectPayment, FreelancerFeedback, PerformanceNoteType, TeamPaymentRecord, PerformanceNote, Profile, FreelancerPortalProps } from '../../../types';
 import { getTeamMemberByPortalAccessId } from '../../../services/teamMembers';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 
 import Modal from '../../../shared/ui/Modal';
 import { CalendarIcon, CreditCardIcon, MessageSquareIcon, ClockIcon, UsersIcon, FileTextIcon, MapPinIcon, HomeIcon, FolderKanbanIcon, StarIcon, DollarSignIcon, AlertCircleIcon, BookOpenIcon, PrinterIcon, CheckSquareIcon, Share2Icon, DownloadIcon } from '../../../constants';
@@ -101,13 +102,15 @@ const FreelancerPortal: React.FC<FreelancerPortalProps> = ({ accessId, teamMembe
 
 
     const member = useMemo(() => {
-        const fromProps = teamMembers?.find(m => m.portalAccessId === accessId || m.id === accessId);
+        const matches = teamMembers?.filter(m => m.portalAccessId === accessId || m.id === accessId || m.name === accessId || toPublicNameSlug(m.name) === accessId) || [];
+        const fromProps = matches.length === 1 ? matches[0] : null;
         return fromProps || fetchedMember;
     }, [teamMembers, accessId, fetchedMember]);
 
     useEffect(() => {
         if (!accessId) return;
-        const existsInProps = teamMembers?.some(m => m.portalAccessId === accessId || m.id === accessId);
+        const matchesInProps = teamMembers?.filter(m => m.portalAccessId === accessId || m.id === accessId || m.name === accessId || toPublicNameSlug(m.name) === accessId) || [];
+        const existsInProps = matchesInProps.length === 1;
         if (!existsInProps && !member) {
             let active = true;
             setIsFetchingDirect(true);
@@ -131,7 +134,7 @@ const FreelancerPortal: React.FC<FreelancerPortalProps> = ({ accessId, teamMembe
     const assignedProjects = useMemo(() => (projects || []).filter(p => p.team?.some(t => t.memberId === member?.id)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [projects, member]);
 
     if (!member) {
-        if (isFetchingDirect || (!hasAttemptedDirectFetch && (!teamMembers || teamMembers.length === 0))) {
+        if (accessId && (isFetchingDirect || !hasAttemptedDirectFetch)) {
             return (
                 <div className="flex items-center justify-center min-h-screen bg-white p-4">
                     <div className="flex flex-col items-center justify-center text-center">

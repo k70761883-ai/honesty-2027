@@ -2,6 +2,16 @@ import supabase from '../lib/supabaseClient';
 import { Profile, ProjectStatusConfig } from '../types';
 
 const TABLE = 'profiles';
+const TEMPLATE_ENVELOPE_KEYS = [
+  'bookingFormTemplate',
+  'chatTemplates',
+  'billingTemplates',
+  'invoiceShareTemplate',
+  'receiptShareTemplate',
+  'expenseShareTemplate',
+  'portalShareTemplate',
+  'checklistTemplates',
+] as const;
 
 function asJsonObject<T = any>(value: any): T | null {
   if (!value) return null;
@@ -12,7 +22,14 @@ function asJsonObject<T = any>(value: any): T | null {
   return null;
 }
 
+function getTemplateEnvelope(value: any): Record<string, any> | null {
+  const parsed = asJsonObject<Record<string, any>>(value);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  return TEMPLATE_ENVELOPE_KEYS.some(key => key in parsed) ? parsed : null;
+}
+
 function fromRow(row: any): Profile {
+  const templateEnvelope = getTemplateEnvelope(row.booking_form_template);
   return {
     id: row.id,
     adminUserId: row.admin_user_id || '',
@@ -59,15 +76,17 @@ function fromRow(row: any): Profile {
       backgroundImages: {},
     },
     packageShareTemplate: row.package_share_template || undefined,
-    bookingFormTemplate: row.booking_form_template || undefined,
+    bookingFormTemplate: templateEnvelope
+      ? (typeof templateEnvelope.bookingFormTemplate === 'string' ? templateEnvelope.bookingFormTemplate : undefined)
+      : (row.booking_form_template || undefined),
     // Prefer dedicated column; else, fallback to booking_form_template JSON envelope { chatTemplates: [...] }
-    chatTemplates: row.chat_templates || (asJsonObject(row.booking_form_template)?.chatTemplates ?? []),
-    billingTemplates: asJsonObject(row.booking_form_template)?.billingTemplates ?? undefined,
-    invoiceShareTemplate: asJsonObject(row.booking_form_template)?.invoiceShareTemplate ?? undefined,
-    receiptShareTemplate: asJsonObject(row.booking_form_template)?.receiptShareTemplate ?? undefined,
-    expenseShareTemplate: asJsonObject(row.booking_form_template)?.expenseShareTemplate ?? undefined,
-    portalShareTemplate: asJsonObject(row.booking_form_template)?.portalShareTemplate ?? undefined,
-    checklistTemplates: asJsonObject(row.booking_form_template)?.checklistTemplates ?? undefined,
+    chatTemplates: row.chat_templates || (templateEnvelope?.chatTemplates ?? []),
+    billingTemplates: templateEnvelope?.billingTemplates ?? undefined,
+    invoiceShareTemplate: templateEnvelope?.invoiceShareTemplate ?? undefined,
+    receiptShareTemplate: templateEnvelope?.receiptShareTemplate ?? undefined,
+    expenseShareTemplate: templateEnvelope?.expenseShareTemplate ?? undefined,
+    portalShareTemplate: templateEnvelope?.portalShareTemplate ?? undefined,
+    checklistTemplates: templateEnvelope?.checklistTemplates ?? undefined,
   } as Profile;
 }
 
@@ -122,6 +141,7 @@ export async function upsertProfile(input: Partial<Profile> & { id?: string }): 
   // If any of the templates are provided, merge into booking_form_template JSON envelope
   if (
     input.chatTemplates !== undefined ||
+    input.bookingFormTemplate !== undefined ||
     input.billingTemplates !== undefined ||
     input.invoiceShareTemplate !== undefined ||
     input.receiptShareTemplate !== undefined ||
@@ -132,14 +152,15 @@ export async function upsertProfile(input: Partial<Profile> & { id?: string }): 
     let existingEnvelope: any = {};
     if (input.id) {
       const { data: current } = await supabase.from(TABLE).select('booking_form_template').eq('id', input.id).maybeSingle();
-      const parsed = asJsonObject(current?.booking_form_template);
-      if (parsed && typeof parsed === 'object') {
+      const parsed = getTemplateEnvelope(current?.booking_form_template);
+      if (parsed) {
         existingEnvelope = parsed;
       } else if (typeof current?.booking_form_template === 'string' && current.booking_form_template) {
         existingEnvelope = { bookingFormTemplate: current.booking_form_template };
       }
     }
     const merged: any = { ...existingEnvelope };
+    if (input.bookingFormTemplate !== undefined) merged.bookingFormTemplate = input.bookingFormTemplate;
     if (input.chatTemplates !== undefined) merged.chatTemplates = input.chatTemplates;
     if (input.billingTemplates !== undefined) merged.billingTemplates = input.billingTemplates;
     if (input.invoiceShareTemplate !== undefined) merged.invoiceShareTemplate = input.invoiceShareTemplate;

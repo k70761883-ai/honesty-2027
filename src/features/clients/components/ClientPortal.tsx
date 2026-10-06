@@ -18,6 +18,7 @@ import { getClientByPortalAccessId } from '../../../services/clients';
 import { listProjectsByClientId } from '../../../services/projects';
 import { listProjectMeetings, type ProjectMeeting } from '../../../services/calendarEvents';
 import { supabase } from '../../../lib/supabaseClient';
+import { toPublicNameSlug } from '../../../utils/publicRouting';
 import HelpBox from '../../../shared/ui/HelpBox';
 import InvoiceDocument from '../../finance/components/InvoiceDocument';
 
@@ -125,13 +126,15 @@ const ClientPortal: React.FC<ClientPortalProps> = ({
   const [hasAttemptedDirectFetch, setHasAttemptedDirectFetch] = useState(false);
 
   const client = useMemo(() => {
-    const fromProps = (clients || []).find(c => c.portalAccessId === accessId || c.id === accessId);
+    const matches = (clients || []).filter(c => c.portalAccessId === accessId || c.id === accessId || c.name === accessId || toPublicNameSlug(c.name) === accessId);
+    const fromProps = matches.length === 1 ? matches[0] : null;
     return fromProps || fetchedClient;
   }, [clients, accessId, fetchedClient]);
 
   useEffect(() => {
     if (!accessId) return;
-    const existsInProps = (clients || []).some(c => c.portalAccessId === accessId || c.id === accessId);
+    const matchesInProps = (clients || []).filter(c => c.portalAccessId === accessId || c.id === accessId || c.name === accessId || toPublicNameSlug(c.name) === accessId);
+    const existsInProps = matchesInProps.length === 1;
     if (!existsInProps && !client) {
       let active = true;
       setIsFetchingDirect(true);
@@ -165,7 +168,7 @@ const ClientPortal: React.FC<ClientPortalProps> = ({
 
   // Loading state
   if (!client) {
-    if (isFetchingDirect || (!hasAttemptedDirectFetch && (!clients || clients.length === 0))) {
+    if (accessId && (isFetchingDirect || !hasAttemptedDirectFetch)) {
       return (
         <div className="flex items-center justify-center min-h-screen portal-page">
           <style>{PORTAL_STYLES}</style>
@@ -196,7 +199,7 @@ const ClientPortal: React.FC<ClientPortalProps> = ({
   const tabs = [
     ...(!isVendorClient ? [{ key: 'beranda', label: 'Beranda', active: 'tab-active-mono' }] : []),
     { key: 'proyek', label: 'Acara Saya', active: 'tab-active-mono' },
-    ...(!isVendorClient ? [{ key: 'meeting', label: 'Jadwal Meeting', active: 'tab-active-mono' }] : []),
+    { key: 'meeting', label: 'Jadwal Meeting', active: 'tab-active-mono' },
     { key: 'dokumen', label: 'File', active: 'tab-active-mono' },
     ...(!isVendorClient ? [{ key: 'keuangan', label: 'Keuangan', active: 'tab-active-mono' }] : []),
     { key: 'testimoni', label: 'Testimoni', active: 'tab-active-mono' },
@@ -291,7 +294,7 @@ const ClientPortal: React.FC<ClientPortalProps> = ({
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'beranda' && !isVendorClient && <DashboardTab client={client} projects={clientProjects} profile={profile} packages={packages} />}
         {activeTab === 'proyek' && <ProjectsTab projects={clientProjects} profile={profile} teamMembers={teamMembers} />}
-        {activeTab === 'meeting' && !isVendorClient && <MeetingsTab projects={clientProjects} />}
+        {activeTab === 'meeting' && <MeetingsTab projects={clientProjects} />}
         {activeTab === 'dokumen' && <GalleryTab projects={clientProjects} packages={packages} />}
         {activeTab === 'keuangan' && !isVendorClient && <FinanceTab projects={clientProjects} transactions={transactions} profile={profile} packages={packages} client={client} onViewDocument={setViewingDocument} />}
         {activeTab === 'testimoni' && <FeedbackTab client={client} setClientFeedback={setClientFeedback} showNotification={showNotification} />}
@@ -317,29 +320,46 @@ const MeetingsTab: React.FC<{ projects: Project[] }> = ({ projects }) => {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
-    setError(false);
+    let requestSequence = 0;
 
-    Promise.all(projects.map(async project => ({
-      projectName: project.projectName,
-      meetings: await listProjectMeetings(project.id),
-    })))
-      .then(results => {
-        if (!active) return;
+    const loadMeetings = async () => {
+      const requestId = ++requestSequence;
+      setIsLoading(true);
+      setError(false);
+      try {
+        const results = await Promise.all(projects.map(async project => ({
+          projectName: project.projectName,
+          meetings: await listProjectMeetings(project.id),
+        })));
+        if (!active || requestId !== requestSequence) return;
         setMeetings(results
           .flatMap(result => result.meetings.map(meeting => ({ meeting, projectName: result.projectName })))
           .sort((a, b) => a.meeting.event.startAt.localeCompare(b.meeting.event.startAt)));
-      })
-      .catch(loadError => {
-        if (!active) return;
+      } catch (loadError) {
+        if (!active || requestId !== requestSequence) return;
         console.error('[ClientPortal][meetings.load] Failed to load client project meetings:', loadError);
         setError(true);
+      } finally {
+        if (active && requestId === requestSequence) setIsLoading(false);
+      }
+    };
+
+    void loadMeetings();
+    const channel = supabase
+      .channel(`client-portal-meetings-${projects.map(project => project.id).join('-').slice(0, 120)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, () => {
+        void loadMeetings();
       })
-      .finally(() => {
-        if (active) setIsLoading(false);
+      .subscribe(status => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[ClientPortal][meetings.realtime] Subscription failed:', status);
+        }
       });
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   }, [projects]);
 
   return (

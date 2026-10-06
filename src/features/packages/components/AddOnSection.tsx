@@ -37,7 +37,6 @@ export const AddOnSection: React.FC<AddOnSectionProps> = ({
     onDeleteAddOn,
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedRegion, setSelectedRegion] = useState<string>(regionFilter || '');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingAddOn, setEditingAddOn] = useState<AddOn | null>(null);
     const [formData, setFormData] = useState({
@@ -50,13 +49,13 @@ export const AddOnSection: React.FC<AddOnSectionProps> = ({
     // Filter add-ons
     const filteredAddOns = addOns.filter(a => {
         const matchSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchRegion = !selectedRegion || (a.region && a.region.toLowerCase() === selectedRegion.toLowerCase());
+        const matchRegion = !regionFilter || (a.region && a.region.toLowerCase() === regionFilter.toLowerCase());
         return matchSearch && matchRegion;
     });
 
     const handleOpenCreate = () => {
         setEditingAddOn(null);
-        setFormData({ name: '', price: '', region: selectedRegion || '' });
+        setFormData({ name: '', price: '', region: regionFilter || '' });
         setIsFormOpen(true);
     };
 
@@ -116,17 +115,6 @@ export const AddOnSection: React.FC<AddOnSectionProps> = ({
                         />
                     </div>
 
-                    {/* Region Selector */}
-                    <select
-                        value={selectedRegion}
-                        onChange={e => setSelectedRegion(e.target.value)}
-                        className="py-2 px-3 rounded-xl border border-[#EAEFF4] bg-[#F4F6F9] focus:bg-white focus:border-[#5D87FF] text-xs font-semibold text-[#2A3547] outline-none cursor-pointer"
-                    >
-                        <option value="">Semua Wilayah</option>
-                        {unionRegions.map(r => (
-                            <option key={r.value} value={r.value}>{r.label}</option>
-                        ))}
-                    </select>
                 </div>
 
                 {/* Add New Button */}

@@ -44,8 +44,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, users }) => {
             // Kita sekarang aman untuk query tabel `users` (karena RLS mengizinkan authenticated user)
             const { data: dbUser, error: dbError } = await supabase
                 .from('users')
-                .select('*')
-                .eq('email', cleanEmail)
+                .select('id,email,full_name,role,permissions')
+                .ilike('email', cleanEmail.replace(/[\\%_]/g, '\\$&'))
                 .single();
 
             let finalUser: User;
@@ -54,20 +54,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, users }) => {
                     id: dbUser.id,
                     email: dbUser.email,
                     password: '', // Jangan simpan password plain
-                    fullName: dbUser.full_name || dbUser.name || 'User',
+                    fullName: dbUser.full_name || 'User',
                     role: dbUser.role || 'Admin',
                     permissions: dbUser.permissions || [],
                 };
             } else {
-                // Fallback aman jika user tidak ada di tabel custom (hanya ada di auth)
-                finalUser = {
-                    id: authData.user.id,
-                    email: cleanEmail,
-                    password: '',
-                    fullName: 'Admin',
-                    role: 'Admin', // Default
-                    permissions: [],
-                };
+                await supabase.auth.signOut();
+                setError('Akun belum terdaftar pada sistem. Hubungi administrator.');
+                setIsLoading(false);
+                return;
             }
 
             onLoginSuccess(finalUser);

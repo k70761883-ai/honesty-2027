@@ -422,6 +422,7 @@ export const PublicRoutes: React.FC<PublicRoutesProps> = ({
     const accessId = decodeURIComponent((raw.split(/[?#]/)[0] || "").split("/")[0] || "").trim();
     return (
       <ClientPortal
+        key={accessId}
         accessId={accessId}
         clients={clients}
         projects={projects}
@@ -461,6 +462,7 @@ export const PublicRoutes: React.FC<PublicRoutesProps> = ({
     const accessId = decodeURIComponent((raw.split(/[?#]/)[0] || "").split("/")[0] || "").trim();
     return (
       <FreelancerPortal
+        key={accessId}
         accessId={accessId}
         teamMembers={teamMembers}
         clients={clients}

@@ -1,5 +1,6 @@
 import supabase from '../lib/supabaseClient';
 import { Client, ClientStatus, ClientType } from '../types';
+import { publicNamePatternsFromSlug } from '../utils/publicRouting';
 
 const TABLE = 'clients';
 
@@ -133,27 +134,39 @@ export async function getClientByPortalAccessId(accessId: string): Promise<Clien
     .select('*')
     .eq('portal_access_id', cleanId)
     .maybeSingle();
-  if (error) {
-    console.warn('[getClientByPortalAccessId] error querying portal_access_id:', error);
-    // If querying by portal_access_id returned nothing, also check id as fallback
-    const { data: byId, error: errById } = await supabase
+  if (data) return normalizeClient(data);
+  if (error) console.warn('[getClientByPortalAccessId] error querying portal_access_id:', error);
+
+  const { data: byId } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('id', cleanId)
+    .maybeSingle();
+  if (byId) return normalizeClient(byId);
+
+  const patterns = publicNamePatternsFromSlug(cleanId);
+  if (patterns === null) {
+    const { data: byName, error: nameError } = await supabase
       .from(TABLE)
       .select('*')
-      .eq('id', cleanId)
-      .maybeSingle();
-    if (errById) return null;
-    return byId ? normalizeClient(byId) : null;
+      .eq('name', cleanId)
+      .limit(2);
+    return nameError || byName?.length !== 1 ? null : normalizeClient(byName[0]);
   }
-  if (!data) {
-    // Check by id as fallback
-    const { data: byId } = await supabase
+  if (patterns.length === 0) return null;
+
+  const matches = new Map<string, any>();
+  for (const pattern of patterns) {
+    const { data: candidates, error: patternError } = await supabase
       .from(TABLE)
       .select('*')
-      .eq('id', cleanId)
-      .maybeSingle();
-    return byId ? normalizeClient(byId) : null;
+      .ilike('name', pattern)
+      .limit(2);
+    if (patternError) return null;
+    for (const candidate of candidates || []) matches.set(candidate.id, candidate);
+    if (matches.size > 1) return null;
   }
-  return data ? normalizeClient(data) : null;
+  return matches.size === 1 ? normalizeClient([...matches.values()][0]) : null;
 }
 
 export async function createClient(payload: Omit<Client, 'id'>): Promise<Client> {

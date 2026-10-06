@@ -9,6 +9,34 @@
  * Guarantees zero reloads, immediate first-render recognition, and full compatibility.
  */
 
+export function toPublicNameSlug(name: string): string {
+  return name
+    .trim()
+    .replace(/&/g, '-and-')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export function publicNameFromSlug(slug: string): string {
+  return slug.trim().replace(/-and-/gi, ' & ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function publicNamePatternsFromSlug(slug: string): string[] | null {
+  if (!/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(slug)) return null;
+
+  const segments = slug.split(/(-and-)/i);
+  if (segments.filter(segment => /^-and-$/i.test(segment)).length > 4) return [];
+
+  return segments.reduce<string[]>((patterns, segment) => {
+    if (/^-and-$/i.test(segment)) {
+      return patterns.flatMap(pattern => [`${pattern}%&%`, `${pattern}%and%`]);
+    }
+    const safeSegment = segment.replace(/-/g, '%');
+    return patterns.map(pattern => `${pattern}${safeSegment}`);
+  }, ['']);
+}
+
 export function resolveCanonicalRoute(pathname?: string, hash?: string, search?: string): string {
   if (typeof window === 'undefined') return '#/home';
 
