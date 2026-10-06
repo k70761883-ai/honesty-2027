@@ -17,6 +17,14 @@ export const PRODUCTION_COST_CATEGORIES = [
     "Produksi Fisik"
 ];
 
+// Helper: returns true if the category matches any production cost category
+// Uses partial/case-insensitive matching so variants like "Transport & Akomodasi Fotografi" are also caught
+export function isProductionCostCategory(category: string): boolean {
+    if (!category) return false;
+    const normalized = category.toLowerCase();
+    return PRODUCTION_COST_CATEGORIES.some(c => normalized.includes(c.toLowerCase()));
+}
+
 interface ReportFilters {
     client: string;
     dateFrom: string;
@@ -184,15 +192,15 @@ const FinanceReportsTab: React.FC<FinanceReportsTabProps> = ({
                             <div className="rounded-2xl bg-white/5 border border-brand-border p-3">
                                 <p className="text-[11px] text-brand-text-secondary">Biaya Produksi</p>
                                 <p className="font-semibold text-[#DC2626]">
-                                    {formatCurrency(reportTransactions.filter(t => t.type === TransactionType.EXPENSE && PRODUCTION_COST_CATEGORIES.includes(t.category)).reduce((s, t) => s + t.amount, 0))}
+                                    {formatCurrency(reportTransactions.filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category)).reduce((s, t) => s + t.amount, 0))}
                                 </p>
                             </div>
                             <div className="col-span-2 sm:col-span-1 rounded-2xl bg-white/5 border border-brand-border p-3">
                                 <p className="text-[11px] text-brand-text-secondary">Laba</p>
-                                <p className={`font-semibold ${reportTransactions.filter(t => t.type === TransactionType.INCOME).reduce((s, t) => s + t.amount, 0) >= reportTransactions.filter(t => t.type === TransactionType.EXPENSE && PRODUCTION_COST_CATEGORIES.includes(t.category)).reduce((s, t) => s + t.amount, 0) ? 'text-[#166534]' : 'text-[#DC2626]'}`}>
+                                <p className={`font-semibold ${reportTransactions.filter(t => t.type === TransactionType.INCOME).reduce((s, t) => s + t.amount, 0) >= reportTransactions.filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category)).reduce((s, t) => s + t.amount, 0) ? 'text-[#166534]' : 'text-[#DC2626]'}`}>
                                     {formatCurrency(
                                         reportTransactions.filter(t => t.type === TransactionType.INCOME).reduce((s, t) => s + t.amount, 0) -
-                                        reportTransactions.filter(t => t.type === TransactionType.EXPENSE && PRODUCTION_COST_CATEGORIES.includes(t.category)).reduce((s, t) => s + t.amount, 0)
+                                        reportTransactions.filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category)).reduce((s, t) => s + t.amount, 0)
                                     )}
                                 </p>
                             </div>
@@ -236,3 +244,5 @@ const FinanceReportsTab: React.FC<FinanceReportsTabProps> = ({
 };
 
 export default FinanceReportsTab;
+
+

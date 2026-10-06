@@ -9,7 +9,7 @@ import {
     Project
 } from '../../../types';
 import { getMonthDateRange } from '../utils/financeHelpers';
-import { PRODUCTION_COST_CATEGORIES } from '../components/FinanceReportsTab';
+import { PRODUCTION_COST_CATEGORIES, isProductionCostCategory } from '../components/FinanceReportsTab';
 
 interface UseFinanceCalculationsParams {
     transactions: Transaction[];
@@ -389,7 +389,7 @@ export function useFinanceCalculations({
                 .reduce((sum, t) => sum + t.amount, 0);
 
             const totalCost = relevantTransactions
-                .filter(t => t.type === TransactionType.EXPENSE && PRODUCTION_COST_CATEGORIES.includes(t.category))
+                .filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category))
                 .reduce((sum, t) => sum + t.amount, 0);
 
             const totalCustomCosts = clientProjectsInMonth.reduce((sum, p) => sum + (p.customCosts?.reduce((s, c) => s + c.amount, 0) || 0), 0);
@@ -526,3 +526,5 @@ export function useFinanceCalculations({
         historicalMonthsCount
     };
 }
+
+

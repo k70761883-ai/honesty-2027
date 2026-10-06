@@ -4,8 +4,7 @@ import StatCard from '../../../shared/ui/StatCard';
 import TransactionTable from './TransactionTable';
 import { ArrowUpIcon, ArrowDownIcon, DollarSignIcon } from '../../../constants';
 import { formatCurrency } from '../../../utils/currency';
-
-const PRODUCTION_COST_CATEGORIES = ["Gaji Tim / Vendor", "Transport", "Transportasi", "Konsumsi", "Sewa Tempat", "Sewa Alat", "Produksi Fisik"];
+import { isProductionCostCategory } from './FinanceReportsTab';
 
 interface ClientProfitabilityReportProps {
     transactions: Transaction[];
@@ -29,7 +28,7 @@ const ClientProfitabilityReport: React.FC<ClientProfitabilityReportProps> = ({
     onAddTransaction,
 }) => {
     const clientIncome = transactions.filter(t => t.type === TransactionType.INCOME);
-    const clientCost = transactions.filter(t => t.type === TransactionType.EXPENSE && PRODUCTION_COST_CATEGORIES.includes(t.category));
+    const clientCost = transactions.filter(t => t.type === TransactionType.EXPENSE && isProductionCostCategory(t.category));
     const totalIncome = clientIncome.reduce((sum, t) => sum + t.amount, 0);
     const totalCost = clientCost.reduce((sum, t) => sum + t.amount, 0);
     const profit = totalIncome - totalCost;
@@ -116,3 +115,5 @@ const ClientProfitabilityReport: React.FC<ClientProfitabilityReportProps> = ({
 };
 
 export default ClientProfitabilityReport;
+
+
