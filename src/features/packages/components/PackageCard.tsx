@@ -62,7 +62,7 @@ export const PackageCard: React.FC<PackageCardProps> = ({
         : pkg.physicalItems || [];
 
     return (
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-[#EAEFF4] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.07)] hover:border-[#5D87FF]/30 transition-all duration-300 flex flex-col overflow-hidden group">
+        <div className="h-full bg-white rounded-xl sm:rounded-2xl border border-[#EAEFF4] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.07)] hover:border-[#5D87FF]/30 transition-all duration-300 flex flex-col overflow-hidden group">
             {/* ── Cover Image Header ── */}
             <div className="relative h-24 sm:h-36 lg:h-48 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
                 {pkg.coverImage ? (

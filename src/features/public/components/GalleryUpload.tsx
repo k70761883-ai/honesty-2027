@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react';
 import { Profile, Gallery, REGIONS } from '../../../types';
 import Modal from '../../../shared/ui/Modal';
 import { UploadIcon, TrashIcon, LinkIcon, MapPinIcon, PlusIcon, FileTextIcon, CameraIcon } from '../../../constants';
-import { createGallery, listGalleries, uploadGalleryImages, deleteGallery, updateGallery, uploadCoverImage } from '../../../services/galleries';
+import { createGallery, listGalleries, uploadGalleryImages, deleteGallery, updateGallery, uploadCoverImage, uploadGalleryPdf, deleteGalleryImage, reorderGalleryImages } from '../../../services/galleries';
 
 interface GalleryUploadProps {
     userProfile: Profile;
@@ -44,7 +44,11 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
     });
 
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
+    const [pdfDisplayName, setPdfDisplayName] = useState('');
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
+    const [isAllPhotosOpen, setIsAllPhotosOpen] = useState(false);
 
     useEffect(() => {
         loadGalleries();
@@ -143,6 +147,79 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
         }
     };
 
+    const handleImageLoad = (imageId: string, event: React.SyntheticEvent<HTMLImageElement>) => {
+        const img = event.currentTarget;
+        if (!img.naturalWidth || !img.naturalHeight) return;
+
+        const ratio = img.naturalWidth / img.naturalHeight;
+        setImageRatios(prev => ({
+            ...prev,
+            [imageId]: ratio
+        }));
+    };
+
+    const handleDeleteGalleryImage = async (galleryId: string, imageId: string) => {
+        if (!confirm('Yakin ingin menghapus gambar ini?')) return;
+
+        try {
+            setIsSubmitting(true);
+            await deleteGalleryImage(galleryId, imageId);
+
+            setGalleries(prev => prev.map(g =>
+                g.id === galleryId
+                    ? { ...g, images: g.images.filter(img => img.id !== imageId) }
+                    : g
+            ));
+
+            setSelectedGallery(prev =>
+                prev && prev.id === galleryId
+                    ? { ...prev, images: prev.images.filter(img => img.id !== imageId) }
+                    : prev
+            );
+
+            showNotification('Gambar berhasil dihapus');
+        } catch (error) {
+            console.error('Error deleting gallery image:', error);
+            showNotification('Gagal menghapus gambar');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleMoveGalleryImage = async (galleryId: string, imageId: string, direction: 'up' | 'down') => {
+        if (!selectedGallery) return;
+
+        const currentIndex = selectedGallery.images.findIndex(img => img.id === imageId);
+        if (currentIndex < 0) return;
+
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= selectedGallery.images.length) return;
+
+        try {
+            setIsSubmitting(true);
+            await reorderGalleryImages(galleryId, currentIndex, targetIndex);
+
+            const nextImages = [...selectedGallery.images];
+            const [moved] = nextImages.splice(currentIndex, 1);
+            nextImages.splice(targetIndex, 0, moved);
+
+            setGalleries(prev => prev.map(g =>
+                g.id === galleryId ? { ...g, images: nextImages } : g
+            ));
+
+            setSelectedGallery(prev =>
+                prev && prev.id === galleryId ? { ...prev, images: nextImages } : prev
+            );
+
+            showNotification('Urutan foto berhasil diubah');
+        } catch (error) {
+            console.error('Error reordering gallery image:', error);
+            showNotification('Gagal mengubah urutan foto');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleUploadCoverImage = async (e: React.ChangeEvent<HTMLInputElement>, galleryId: string) => {
         if (!e.target.files || e.target.files.length === 0) return;
         const file = e.target.files[0];
@@ -161,6 +238,47 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
         } catch (error) {
             console.error('Error uploading cover image:', error);
             showNotification('Gagal mengupload cover image');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handlePdfFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+
+        if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+            showNotification('File PDF saja yang dapat diupload');
+            return;
+        }
+
+        setSelectedPdfFile(file);
+        const defaultName = file.name.replace(/\.pdf$/i, '').trim() || 'Pricelist PDF';
+        setPdfDisplayName(prev => prev && prev.trim() ? prev : defaultName);
+    };
+
+    const handleUploadPdf = async () => {
+        if (!selectedGallery || !selectedPdfFile) return;
+
+        const finalPdfName = (pdfDisplayName || selectedGallery.title || 'Pricelist PDF').trim() || 'Pricelist PDF';
+
+        try {
+            setIsSubmitting(true);
+            const result = await uploadGalleryPdf(selectedGallery.id, selectedPdfFile, finalPdfName);
+
+            setGalleries(prev => prev.map(g =>
+                g.id === selectedGallery.id
+                    ? { ...g, pdf_url: result.pdf_url, pdf_name: result.pdf_name }
+                    : g
+            ));
+
+            setPdfDisplayName(result.pdf_name);
+            setIsUploadModalOpen(false);
+            setSelectedPdfFile(null);
+            showNotification('PDF Pricelist berhasil diupload');
+        } catch (error) {
+            console.error('Error uploading gallery PDF:', error);
+            showNotification('Gagal mengupload PDF Pricelist');
         } finally {
             setIsSubmitting(false);
         }
@@ -189,6 +307,8 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
         setSelectedGallery(gallery);
         setIsUploadModalOpen(true);
         setSelectedFiles([]);
+        setSelectedPdfFile(null);
+        setPdfDisplayName(gallery.pdf_name || 'Pricelist PDF');
     };
 
     const openEditModal = (gallery: Gallery) => {
@@ -332,8 +452,15 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                                 </label>
                             </div>
 
-                            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium border border-white/10 shadow-sm">
-                                {gallery.images.length} foto
+                            <div className="absolute top-3 right-3 flex gap-1.5 flex-wrap justify-end">
+                                <span className="bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium border border-white/10 shadow-sm">
+                                    {gallery.images.length} foto
+                                </span>
+                                {gallery.pdf_url && (
+                                    <span className="bg-amber-500/90 text-white px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide shadow-sm">
+                                        PDF
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -361,18 +488,18 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                             )}
 
                             {/* Action Buttons */}
-                            <div className="flex gap-2 mt-auto pt-4 border-t border-brand-border/50">
+                            <div className="mt-auto flex items-center gap-2 pt-4 border-t border-brand-border/50">
                                 <button
                                     onClick={() => openUploadModal(gallery)}
-                                    className="flex-1 button-primary !py-2 !px-2 text-xs"
+                                    className="button-primary flex-1 !py-2 !px-2 text-[11px] font-semibold"
                                 >
                                     <UploadIcon className="w-4 h-4 flex-shrink-0" />
                                     <span className="truncate">Upload</span>
                                 </button>
-                                <div className="flex gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <button
                                         onClick={() => openEditModal(gallery)}
-                                        className="button-secondary !p-2 md:!p-2.5 text-brand-text-secondary hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50"
+                                        className="button-secondary !w-9 !h-9 !p-0 text-brand-text-secondary hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50"
                                         title="Edit Pricelist"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,14 +512,14 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                                                 href={`/#/gallery/${gallery.public_id}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="button-secondary !p-2 md:!p-2.5 text-brand-text-secondary hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50"
+                                                className="button-secondary !w-9 !h-9 !p-0 text-brand-text-secondary hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50"
                                                 title="Buka Halaman Publik"
                                             >
                                                 <ExternalLink className="w-4 h-4" />
                                             </a>
                                             <button
                                                 onClick={() => copyPublicLink(gallery)}
-                                                className="button-secondary !p-2 md:!p-2.5 text-brand-text-secondary hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50"
+                                                className="button-secondary !w-9 !h-9 !p-0 text-brand-text-secondary hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50"
                                                 title="Salin Link Publik"
                                             >
                                                 <LinkIcon className="w-4 h-4" />
@@ -401,7 +528,7 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                                     )}
                                     <button
                                         onClick={() => handleDeleteGallery(gallery.id)}
-                                        className="button-secondary !p-2 md:!p-2.5 text-brand-text-secondary hover:text-red-600 hover:border-red-300 hover:bg-red-50"
+                                        className="button-secondary !w-9 !h-9 !p-0 text-brand-text-secondary hover:text-red-600 hover:border-red-300 hover:bg-red-50"
                                         title="Hapus Pricelist"
                                     >
                                         <TrashIcon className="w-4 h-4" />
@@ -641,32 +768,196 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
             <Modal
                 isOpen={isUploadModalOpen}
                 onClose={() => setIsUploadModalOpen(false)}
-                title={`Upload ke ${selectedGallery?.title || 'Pricelist'}`}
+                title={selectedGallery ? `Edit Pricelist - ${selectedGallery.title}` : 'Edit Pricelist'}
             >
                 <div className="space-y-5 p-1">
-                    <div className="bg-brand-bg/50 border border-brand-border border-dashed rounded-2xl p-6 md:p-8 text-center transition-colors hover:bg-brand-bg group">
-                        <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                            id="file-upload"
-                        />
-                        <label
-                            htmlFor="file-upload"
-                            className="cursor-pointer flex flex-col items-center justify-center gap-3"
-                        >
-                            <div className="w-16 h-16 rounded-full bg-brand-surface flex items-center justify-center shadow-sm border border-brand-border/50 group-hover:scale-110 transition-transform duration-300">
-                                <UploadIcon className="w-8 h-8 text-brand-accent" />
+                    <div className="rounded-2xl border border-brand-border/50 bg-brand-bg/40 p-3.5 sm:p-4 space-y-3">
+                        {selectedGallery && (
+                            <div className="space-y-2.5">
+                                <div className="flex items-center justify-between gap-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-text-secondary/80">Foto Saat Ini</h4>
+                                    <span className="text-[10px] font-medium text-brand-text-secondary">{selectedGallery.images.length} foto</span>
+                                </div>
+
+                                {selectedGallery.images.length > 0 ? (
+                                    <>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {(isAllPhotosOpen ? selectedGallery.images : selectedGallery.images.slice(0, 6)).map((image, index) => {
+                                                const ratio = imageRatios[image.id] || 1;
+                                                const isPortrait = ratio < 1;
+                                                const actualIndex = selectedGallery.images.findIndex(img => img.id === image.id);
+
+                                                return (
+                                                    <div key={image.id || index} className="relative group">
+                                                        <img
+                                                            src={image.url}
+                                                            alt={`${selectedGallery.title} ${actualIndex + 1}`}
+                                                            onLoad={(event) => handleImageLoad(image.id, event)}
+                                                            className={`w-full rounded-xl border border-brand-border/50 bg-brand-surface ${isPortrait ? 'h-auto object-contain' : 'h-auto object-cover'}`}
+                                                            style={{ aspectRatio: `${ratio}` }}
+                                                        />
+
+                                                        <div className="absolute bottom-2 right-2 flex gap-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleMoveGalleryImage(selectedGallery.id, image.id, 'up')}
+                                                                disabled={actualIndex === 0 || isSubmitting}
+                                                                className="flex h-6 w-6 items-center justify-center rounded-full border border-white/80 bg-white/90 text-[10px] font-bold text-brand-text-primary shadow-sm transition hover:bg-brand-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                title="Geser ke atas"
+                                                                aria-label="Geser ke atas"
+                                                            >
+                                                                ↑
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleMoveGalleryImage(selectedGallery.id, image.id, 'down')}
+                                                                disabled={actualIndex === selectedGallery.images.length - 1 || isSubmitting}
+                                                                className="flex h-6 w-6 items-center justify-center rounded-full border border-white/80 bg-white/90 text-[10px] font-bold text-brand-text-primary shadow-sm transition hover:bg-brand-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                title="Geser ke bawah"
+                                                                aria-label="Geser ke bawah"
+                                                            >
+                                                                ↓
+                                                            </button>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteGalleryImage(selectedGallery.id, image.id)}
+                                                            className="delete-image-button absolute -top-2 -right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-red-200 bg-white text-[10px] font-bold text-red-600 shadow-md transition hover:scale-105 hover:bg-red-50"
+                                                            title="Hapus gambar"
+                                                            aria-label="Hapus gambar"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {selectedGallery.images.length > 6 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsAllPhotosOpen(prev => !prev)}
+                                                className="w-full rounded-xl border border-brand-accent/25 bg-brand-accent/5 px-3 py-2 text-sm font-semibold text-brand-accent transition hover:border-brand-accent hover:bg-brand-accent/10"
+                                            >
+                                                {isAllPhotosOpen ? 'Tutup Semua Foto' : `Lihat Semua Foto (${selectedGallery.images.length})`}
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="rounded-xl border border-dashed border-brand-border/60 bg-brand-surface px-3 py-3 text-xs text-brand-text-secondary">
+                                        Belum ada foto pada pricelist ini.
+                                    </div>
+                                )}
+
+                                <div className="pt-1 space-y-2.5">
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                        id="file-upload"
+                                    />
+                                    <label
+                                        htmlFor="file-upload"
+                                        className="inline-flex w-full cursor-pointer items-center justify-center rounded-xl border border-brand-accent/30 bg-gradient-to-r from-brand-accent/10 to-brand-accent/20 px-3 py-2.5 text-sm font-semibold text-brand-accent shadow-sm transition-all hover:border-brand-accent hover:shadow-md hover:scale-[1.01]"
+                                    >
+                                        Pilih Foto Baru
+                                    </label>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleUploadImages}
+                                        disabled={selectedFiles.length === 0 || isSubmitting}
+                                        className="button-primary w-full !py-2.5 !text-sm font-semibold"
+                                    >
+                                        {isSubmitting ? 'Mengupload...' : 'Upload Gambar'}
+                                    </button>
+                                </div>
                             </div>
-                            <div>
-                                <h4 className="font-semibold text-brand-text-light">Klik untuk memilih gambar</h4>
-                                <p className="text-xs text-brand-text-secondary mt-1">
-                                    Maksimal 10MB per file. Format: JPG, PNG, WebP
+                        )}
+                    </div>
+
+                    <div className="rounded-2xl border border-brand-border/50 bg-brand-surface/80 p-3.5 sm:p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <h4 className="text-sm font-semibold text-brand-text-light">PDF Pricelist</h4>
+                                <p className="text-[10px] sm:text-[11px] text-brand-text-secondary mt-0.5 leading-relaxed">
+                                    Lampiran PDF untuk pengunjung di halaman publik.
                                 </p>
                             </div>
-                        </label>
+                            {selectedGallery?.pdf_url && (
+                                <a
+                                    href={selectedGallery.pdf_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] sm:text-[11px] font-medium text-brand-accent underline underline-offset-2 whitespace-nowrap"
+                                >
+                                    Lihat PDF
+                                </a>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="pdf-display-name" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-text-secondary/80">
+                                Nama PDF di Halaman Publik
+                            </label>
+
+                            <div className="flex items-center gap-2 rounded-xl border border-brand-border/60 bg-brand-bg/40 px-2 py-2 min-h-[42px]">
+                                <input
+                                    id="pdf-display-name"
+                                    type="text"
+                                    value={pdfDisplayName}
+                                    onChange={(e) => setPdfDisplayName(e.target.value)}
+                                    className="w-full bg-transparent text-sm text-brand-text-primary outline-none placeholder:text-brand-text-secondary/60"
+                                    placeholder="Masukkan nama PDF custom"
+                                />
+
+                                <input
+                                    type="file"
+                                    accept=".pdf,application/pdf"
+                                    onChange={handlePdfFileSelect}
+                                    className="hidden"
+                                    id="pdf-upload"
+                                />
+
+                                <label
+                                    htmlFor="pdf-upload"
+                                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-[11px] font-semibold text-brand-text-light hover:border-brand-accent hover:text-brand-accent transition-colors whitespace-nowrap"
+                                >
+                                    {selectedPdfFile ? 'Ganti PDF' : 'Pilih PDF'}
+                                </label>
+
+                                {selectedPdfFile && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedPdfFile(null);
+                                            setPdfDisplayName(selectedGallery?.pdf_name || 'Pricelist PDF');
+                                        }}
+                                        className="text-[10px] font-medium text-brand-danger hover:opacity-80 whitespace-nowrap"
+                                    >
+                                        Reset
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleUploadPdf}
+                            disabled={!selectedPdfFile || isSubmitting}
+                            className="button-primary w-full !py-2.5 !text-sm font-semibold"
+                        >
+                            {isSubmitting ? 'Mengupload PDF...' : 'Upload PDF'}
+                        </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-brand-border/50 bg-brand-bg/20 p-2.5 sm:p-3">
+                        <p className="text-[10px] sm:text-[11px] text-brand-text-secondary leading-relaxed">
+                            Maksimal 10MB per file. Format: JPG, PNG, WebP.
+                        </p>
                     </div>
 
                     {selectedFiles.length > 0 && (
@@ -716,13 +1007,6 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                             className="flex-1 button-secondary"
                         >
                             Batal
-                        </button>
-                        <button
-                            onClick={handleUploadImages}
-                            disabled={selectedFiles.length === 0 || isSubmitting}
-                            className="flex-1 button-primary"
-                        >
-                            {isSubmitting ? 'Mengupload...' : 'Upload Gambar'}
                         </button>
                     </div>
                 </div>

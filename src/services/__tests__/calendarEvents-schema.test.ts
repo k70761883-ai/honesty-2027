@@ -4,6 +4,8 @@ const fromMock = vi.fn();
 const insertMock = vi.fn();
 const selectMock = vi.fn();
 const singleMock = vi.fn();
+const deleteMock = vi.fn();
+const eqMock = vi.fn();
 
 vi.mock('../../lib/supabaseClient', () => ({
   default: {
@@ -17,6 +19,7 @@ describe('calendar event database schema mapping', () => {
 
     fromMock.mockReturnValue({
       insert: insertMock,
+      delete: deleteMock,
     });
     insertMock.mockReturnValue({
       select: selectMock,
@@ -40,6 +43,8 @@ describe('calendar event database schema mapping', () => {
       },
       error: null,
     });
+    deleteMock.mockReturnValue({ eq: eqMock });
+    eqMock.mockReturnValue({ select: selectMock });
   });
 
   describe('project meeting calendar metadata', () => {
@@ -100,5 +105,26 @@ describe('calendar event database schema mapping', () => {
       allDay: true,
       teamMemberId: 'member-1',
     });
+  });
+
+  it('confirms an event was deleted before reporting success', async () => {
+    selectMock.mockReturnValue({ single: singleMock });
+    singleMock.mockResolvedValue({ data: { id: 'event-1' }, error: null });
+
+    const { deleteCalendarEvent } = await import('../calendarEvents');
+    await expect(deleteCalendarEvent('event-1')).resolves.toBeUndefined();
+
+    expect(deleteMock).toHaveBeenCalledOnce();
+    expect(eqMock).toHaveBeenCalledWith('id', 'event-1');
+    expect(selectMock).toHaveBeenCalledWith('id');
+  });
+
+  it('reports a deletion that did not remove a matching event', async () => {
+    const noRowsError = new Error('No rows found');
+    selectMock.mockReturnValue({ single: singleMock });
+    singleMock.mockResolvedValue({ data: null, error: noRowsError });
+
+    const { deleteCalendarEvent } = await import('../calendarEvents');
+    await expect(deleteCalendarEvent('event-1')).rejects.toThrow('No rows found');
   });
 });

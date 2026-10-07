@@ -100,16 +100,38 @@ export const updateGallery = async (id: string, updates: Partial<Gallery>): Prom
 export const deleteGallery = async (id: string): Promise<void> => {
     // First, delete all images from storage
     const gallery = await getGallery(id);
-    if (gallery && gallery.images.length > 0) {
-        const imagePaths = gallery.images.map(img => {
-            const url = new URL(img.url);
-            return url.pathname.split('/').pop() || '';
-        }).filter(Boolean);
+    if (gallery) {
+        const storagePaths: string[] = [];
 
-        if (imagePaths.length > 0) {
+        if (Array.isArray(gallery.images) && gallery.images.length > 0) {
+            const imagePaths = gallery.images.map(img => {
+                try {
+                    const url = new URL(img.url);
+                    return url.pathname.split('/').pop() || '';
+                } catch {
+                    return '';
+                }
+            }).filter(Boolean);
+
+            storagePaths.push(...imagePaths);
+        }
+
+        if (gallery.pdf_url) {
+            try {
+                const pdfUrl = new URL(gallery.pdf_url);
+                const pdfPath = pdfUrl.pathname.split('/').pop() || '';
+                if (pdfPath) {
+                    storagePaths.push(pdfPath);
+                }
+            } catch {
+                // Ignore invalid URL
+            }
+        }
+
+        if (storagePaths.length > 0) {
             await supabase.storage
                 .from('gallery-images')
-                .remove(imagePaths);
+                .remove(storagePaths);
         }
     }
 
@@ -178,6 +200,40 @@ export const uploadGalleryImages = async (
     return uploadedImages;
 };
 
+export const uploadGalleryPdf = async (
+    galleryId: string,
+    file: File,
+    displayName?: string
+): Promise<{ pdf_url: string; pdf_name: string }> => {
+    const fileExt = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'pdf';
+    const fileName = `${galleryId}/pricelist-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from('gallery-images')
+        .upload(fileName, file, {
+            contentType: 'application/pdf',
+            upsert: true
+        });
+
+    if (uploadError) {
+        console.error('Error uploading gallery PDF:', uploadError);
+        throw new Error('Gagal mengupload PDF Pricelist');
+    }
+
+    const { data: urlData } = supabase.storage
+        .from('gallery-images')
+        .getPublicUrl(fileName);
+
+    const finalDisplayName = (displayName || file.name || 'Pricelist PDF').trim() || 'Pricelist PDF';
+    const pdfUrl = urlData.publicUrl;
+    await updateGallery(galleryId, { pdf_url: pdfUrl, pdf_name: finalDisplayName });
+
+    return {
+        pdf_url: pdfUrl,
+        pdf_name: finalDisplayName
+    };
+};
+
 export const deleteGalleryImage = async (galleryId: string, imageId: string): Promise<void> => {
     const gallery = await getGallery(galleryId);
     if (!gallery) {
@@ -201,6 +257,27 @@ export const deleteGalleryImage = async (galleryId: string, imageId: string): Pr
     // Update gallery images
     const updatedImages = gallery.images.filter(img => img.id !== imageId);
     await updateGallery(galleryId, { images: updatedImages });
+};
+
+export const reorderGalleryImages = async (
+    galleryId: string,
+    currentIndex: number,
+    targetIndex: number
+): Promise<void> => {
+    const gallery = await getGallery(galleryId);
+    if (!gallery) {
+        throw new Error('Pricelist tidak ditemukan');
+    }
+
+    if (currentIndex === targetIndex || currentIndex < 0 || targetIndex < 0) {
+        return;
+    }
+
+    const reorderedImages = [...gallery.images];
+    const [imageToMove] = reorderedImages.splice(currentIndex, 1);
+    reorderedImages.splice(targetIndex, 0, imageToMove);
+
+    await updateGallery(galleryId, { images: reorderedImages });
 };
 
 export const getGalleriesByRegion = async (region: string): Promise<Gallery[]> => {

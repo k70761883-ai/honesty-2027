@@ -199,6 +199,8 @@ export async function deleteCalendarEvent(id: string): Promise<void> {
   const { error } = await supabase
     .from(TABLE)
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id')
+    .single();
   if (error) throw error;
 }

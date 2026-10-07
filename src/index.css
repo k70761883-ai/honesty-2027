@@ -175,6 +175,20 @@ button:is([title*="edit" i], [title*="update" i], [title*="ubah" i], [aria-label
   border-color: #D97706 !important;
 }
 
+.delete-image-button {
+  background-color: #FFFFFF !important;
+  background-image: none !important;
+  border-color: #FCA5A5 !important;
+  color: #DC2626 !important;
+  box-shadow: 0 6px 16px -8px rgba(220, 38, 38, 0.45) !important;
+  transform: translateZ(0);
+}
+.delete-image-button:hover {
+  background-color: #FEF2F2 !important;
+  border-color: #F87171 !important;
+  color: #B91C1C !important;
+}
+
 button:is([title*="hapus" i], [title*="delete" i], [title*="remove" i], [aria-label*="hapus" i], [aria-label*="delete" i], [aria-label*="remove" i]) {
   background-color: #DC2626 !important;
   background-image: none !important;

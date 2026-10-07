@@ -229,7 +229,7 @@ interface CatalogItemCardProps {
 }
 
 const CatalogItemCard: React.FC<CatalogItemCardProps> = ({ addOn, onEdit, onDelete }) => (
-    <article className="min-h-[150px] bg-white rounded-xl sm:rounded-2xl border border-[#EAEFF4] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:border-[#5D87FF]/30 p-3.5 sm:p-4 flex flex-col justify-between gap-3 transition-all">
+    <article className="h-full min-h-[150px] bg-white rounded-xl sm:rounded-2xl border border-[#EAEFF4] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:border-[#5D87FF]/30 p-3.5 sm:p-4 flex flex-col justify-between gap-3 transition-all">
         <div>
             <div className="flex items-start justify-between gap-2 mb-2">
                 <span className="w-8 h-8 rounded-xl bg-[#49BEFF]/10 text-[#49BEFF] flex items-center justify-center flex-shrink-0"><Sparkles className="w-4 h-4" /></span>
@@ -341,12 +341,11 @@ export const Packages: React.FC<PackagesProps> = ({
         ...filteredAddOns.map(addOn => ({ kind: 'addon' as const, addOn })),
     ], [filteredPackages, filteredAddOns]);
 
-    const catalogByRegion = useMemo(() => {
-        const groups = new Map<string, CatalogEntry[]>();
-        catalogEntries.forEach(entry => {
-            const region = (entry.kind === 'package' ? entry.pkg.region : entry.addOn.region) || '';
-            const key = region.trim().toLowerCase();
-            groups.set(key, [...(groups.get(key) || []), entry]);
+    const packageGroups = useMemo(() => {
+        const groups = new Map<string, Package[]>();
+        filteredPackages.forEach(pkg => {
+            const key = (pkg.region || '').trim().toLowerCase();
+            groups.set(key, [...(groups.get(key) || []), pkg]);
         });
 
         return Array.from(groups.entries())
@@ -362,7 +361,29 @@ export const Packages: React.FC<PackagesProps> = ({
                 if (!b.regionKey) return -1;
                 return a.label.localeCompare(b.label);
             });
-    }, [catalogEntries, unionRegions]);
+    }, [filteredPackages, unionRegions]);
+
+    const addOnGroups = useMemo(() => {
+        const groups = new Map<string, AddOn[]>();
+        filteredAddOns.forEach(addOn => {
+            const key = (addOn.region || '').trim().toLowerCase();
+            groups.set(key, [...(groups.get(key) || []), addOn]);
+        });
+
+        return Array.from(groups.entries())
+            .map(([regionKey, items]) => ({
+                regionKey,
+                label: regionKey
+                    ? unionRegions.find(region => region.value.toLowerCase() === regionKey)?.label || titleCase(regionKey)
+                    : 'Semua Wilayah',
+                items,
+            }))
+            .sort((a, b) => {
+                if (!a.regionKey) return 1;
+                if (!b.regionKey) return -1;
+                return a.label.localeCompare(b.label);
+            });
+    }, [filteredAddOns, unionRegions]);
 
     // Grouping by Category for Cards view
     const packagesByCategory = useMemo(() => {
@@ -825,28 +846,66 @@ export const Packages: React.FC<PackagesProps> = ({
                     </div>
                 </div>
             ) : viewMode === 'cards' ? (
-                <div className="space-y-5">
-                    {catalogByRegion.map(group => (
-                        <section key={group.regionKey || 'unassigned'} className="space-y-3">
+                <div className="space-y-6">
+                    {packageGroups.length > 0 && (
+                        <section className="space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAEFF4] pb-2">
                                 <div className="flex items-center gap-2">
-                                    <MapPin className="w-4 h-4 text-[#5D87FF]" />
-                                    <h3 className="font-bold text-sm sm:text-base text-[#2A3547]">{group.label}</h3>
-                                    <span className="rounded-full bg-[#F4F6F9] border border-[#EAEFF4] px-2 py-0.5 text-[10px] font-semibold text-[#5A6A85]">{group.items.length} item</span>
+                                    <PackageIcon className="w-4 h-4 text-[#5D87FF]" />
+                                    <h3 className="font-bold text-sm sm:text-base text-[#2A3547]">Paket</h3>
+                                    <span className="rounded-full bg-[#F4F6F9] border border-[#EAEFF4] px-2 py-0.5 text-[10px] font-semibold text-[#5A6A85]">{filteredPackages.length} item</span>
                                 </div>
-                                <p className="text-[10px] sm:text-xs text-[#5A6A85]">
-                                    {group.items.filter(item => item.kind === 'package').length} Paket · {group.items.filter(item => item.kind === 'addon').length} Add-On
-                                </p>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                                {group.items.map(item => item.kind === 'package' ? (
-                                    <PackageCard key={`package-${item.pkg.id}`} pkg={item.pkg} onEdit={handleOpenEditPackage} onDuplicate={setCopySourcePkg} onShare={handleShareSinglePackage} onDelete={handleDeletePackage} />
-                                ) : (
-                                    <CatalogItemCard key={`addon-${item.addOn.id}`} addOn={item.addOn} onEdit={handleOpenEditAddOn} onDelete={handleDeleteAddOn} />
+                            <div className="space-y-4">
+                                {packageGroups.map(group => (
+                                    <div key={group.regionKey || 'unassigned'} className="space-y-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="w-4 h-4 text-[#5D87FF]" />
+                                                <h4 className="font-semibold text-xs sm:text-sm text-[#2A3547]">{group.label}</h4>
+                                            </div>
+                                            <span className="text-[10px] sm:text-xs text-[#5A6A85]">{group.items.length} paket</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+                                            {group.items.map(pkg => (
+                                                <PackageCard key={`package-${pkg.id}`} pkg={pkg} onEdit={handleOpenEditPackage} onDuplicate={setCopySourcePkg} onShare={handleShareSinglePackage} onDelete={handleDeletePackage} />
+                                            ))}
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </section>
-                    ))}
+                    )}
+
+                    {addOnGroups.length > 0 && (
+                        <section className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAEFF4] pb-2">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-[#49BEFF]" />
+                                    <h3 className="font-bold text-sm sm:text-base text-[#2A3547]">Add-On</h3>
+                                    <span className="rounded-full bg-[#F4F6F9] border border-[#EAEFF4] px-2 py-0.5 text-[10px] font-semibold text-[#5A6A85]">{filteredAddOns.length} item</span>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                {addOnGroups.map(group => (
+                                    <div key={group.regionKey || 'unassigned'} className="space-y-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="w-4 h-4 text-[#49BEFF]" />
+                                                <h4 className="font-semibold text-xs sm:text-sm text-[#2A3547]">{group.label}</h4>
+                                            </div>
+                                            <span className="text-[10px] sm:text-xs text-[#5A6A85]">{group.items.length} add-on</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+                                            {group.items.map(addOn => (
+                                                <CatalogItemCard key={`addon-${addOn.id}`} addOn={addOn} onEdit={handleOpenEditAddOn} onDelete={handleDeleteAddOn} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
                 </div>
             ) : (
                 <div className="overflow-x-auto rounded-2xl border border-[#EAEFF4] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.03)]">

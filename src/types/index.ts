@@ -111,6 +111,8 @@ export interface Gallery {
   // Optional: custom booking link to be shown on the public gallery page
   booking_link?: string;
   cover_image_url?: string;
+  pdf_url?: string;
+  pdf_name?: string;
   images: GalleryImage[];
   created_at: string;
   updated_at?: string;

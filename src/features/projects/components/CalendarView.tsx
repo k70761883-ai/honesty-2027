@@ -1210,6 +1210,7 @@ interface EventPanelProps {
     teamMembers: TeamMember[];
     clients: Client[];
     profile: Profile;
+    canDelete: boolean;
     onClose: () => void;
     onSetMode: (mode: 'detail' | 'edit') => void;
     onFormChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -1521,7 +1522,7 @@ const TeamView: React.FC<TeamViewProps> = ({ currentDate, eventsByDate, teamMemb
     );
 };
 
-const EventPanel: React.FC<EventPanelProps> = ({ isOpen, mode, selectedEvent, eventForm, teamMembers, clients, profile, onClose, onSetMode, onFormChange, onFormCustomColorChange, onTeamChange, onSubmit, onDelete, onNavigateToProject, onNavigateToClient, onTaskToggle, onTaskAdd, onTaskDelete }) => {
+const EventPanel: React.FC<EventPanelProps> = ({ isOpen, mode, selectedEvent, eventForm, teamMembers, clients, profile, canDelete, onClose, onSetMode, onFormChange, onFormCustomColorChange, onTeamChange, onSubmit, onDelete, onNavigateToProject, onNavigateToClient, onTaskToggle, onTaskAdd, onTaskDelete }) => {
     const [activeTab, setActiveTab] = React.useState<'info' | 'team' | 'finance'>('info');
     const [taskDraft, setTaskDraft] = React.useState('');
 
@@ -1599,7 +1600,7 @@ const EventPanel: React.FC<EventPanelProps> = ({ isOpen, mode, selectedEvent, ev
                                         {selectedEvent.notes && <div className="flex items-start gap-4"><FileTextIcon className="w-5 h-5 text-brand-text-secondary flex-shrink-0 mt-0.5" /><p className="text-brand-text-primary whitespace-pre-wrap">{selectedEvent.notes}</p></div>}
                                     </div>
 
-                                    {selectedEvent.clientId === 'INTERNAL' && (
+                                    {canDelete && (
                                         <section className="mt-6 rounded-2xl border border-[#DCE6F8] bg-gradient-to-br from-white to-[#F5F8FF] p-4 shadow-sm">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex items-center gap-2.5">
@@ -1745,6 +1746,14 @@ const EventPanel: React.FC<EventPanelProps> = ({ isOpen, mode, selectedEvent, ev
                                 </button>
                             )}
                             <button onClick={() => onSetMode('edit')} className="button-primary w-full">{profile.eventTypes?.includes(selectedEvent.projectType) ? 'Edit Detail Acara Agenda' : 'Lihat Detail (Baca Saja)'}</button>
+                            {selectedEvent.clientId === 'INTERNAL' && (
+                                <button
+                                    onClick={onDelete}
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
+                                >
+                                    <Trash2 className="h-4 w-4" /> Hapus Agenda
+                                </button>
+                            )}
                             {!profile.eventTypes?.includes(selectedEvent.projectType) && (
                                 <p className="text-xs text-brand-text-secondary mt-2 text-center">Acara Agenda pengantin hanya dapat diedit di halamannya langsung.</p>
                             )}
@@ -1813,7 +1822,7 @@ const EventPanel: React.FC<EventPanelProps> = ({ isOpen, mode, selectedEvent, ev
                             </div>
                             <div className="input-group"><textarea name="notes" id="eventNotes" value={eventForm.notes} onChange={onFormChange} className="input-field bg-white/80 custom-scrollbar" rows={3} placeholder=" "></textarea><label htmlFor="eventNotes" className="input-label">Catatan</label></div>
                             <div className="flex justify-end gap-3 pt-6 pb-2 border-t border-brand-border/40">
-                                {selectedEvent && profile.eventTypes.includes(selectedEvent.projectType) && (
+                                {selectedEvent && canDelete && (
                                     <button type="button" onClick={onDelete} className="text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm font-semibold transition-colors mr-auto">Hapus</button>
                                 )}
                                 <button type="button" onClick={mode === 'edit' && selectedEvent ? () => onSetMode('detail') : onClose} className="button-secondary shadow-sm">Batal</button>
@@ -2189,9 +2198,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ projects, setProject
 
     const handleDeleteEvent = async () => {
         if (!selectedEvent) return;
-        const isInternal = profile.eventTypes.includes(selectedEvent.projectType);
-        if (!isInternal) {
-            alert('Hapus Acara Agenda pengantin dari halaman Acara Agenda. Kalender hanya menghapus Acara Agenda internal.');
+        const isCalendarEvent = internalEvents.some(event => event.id === selectedEvent.id);
+        if (!isCalendarEvent) {
+            alert('Agenda ini tidak ditemukan sebagai agenda internal Kalender, jadi tidak dapat dihapus dari sini.');
             return;
         }
         if (!window.confirm(`Yakin ingin menghapus Acara Agenda "${selectedEvent.projectName}"?`)) return;
@@ -2651,6 +2660,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ projects, setProject
                     teamMembers={teamMembers}
                     clients={clients}
                     profile={profile}
+                    canDelete={selectedEvent ? internalEvents.some(event => event.id === selectedEvent.id) : false}
                     onClose={() => setIsPanelOpen(false)}
                     onSetMode={setPanelMode}
                     onFormChange={handleFormChange}
