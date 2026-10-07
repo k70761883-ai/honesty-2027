@@ -147,6 +147,61 @@ export const deleteGallery = async (id: string): Promise<void> => {
     }
 };
 
+async function compressGalleryImage(file: File, maxWidthOrHeight: number = 1600, quality: number = 0.8): Promise<File> {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+        return file;
+    }
+
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const image = new Image();
+            image.src = event.target?.result as string;
+            image.onload = () => {
+                let width = image.width;
+                let height = image.height;
+
+                if (width > maxWidthOrHeight || height > maxWidthOrHeight) {
+                    if (width > height) {
+                        height = Math.round((height * maxWidthOrHeight) / width);
+                        width = maxWidthOrHeight;
+                    } else {
+                        width = Math.round((width * maxWidthOrHeight) / height);
+                        height = maxWidthOrHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const context = canvas.getContext('2d');
+
+                if (!context) {
+                    resolve(file);
+                    return;
+                }
+
+                context.drawImage(image, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        resolve(file);
+                        return;
+                    }
+
+                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    resolve(compressedFile);
+                }, 'image/jpeg', quality);
+            };
+            image.onerror = () => resolve(file);
+        };
+        reader.onerror = () => resolve(file);
+    });
+}
+
 export const uploadGalleryImages = async (
     galleryId: string,
     files: File[],
@@ -156,13 +211,16 @@ export const uploadGalleryImages = async (
 
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileExt = file.name.split('.').pop();
+        const processedFile = await compressGalleryImage(file);
+        const fileExt = processedFile.name.split('.').pop() || 'jpg';
         const fileName = `${galleryId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
         // Upload to Supabase Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
             .from('gallery-images')
-            .upload(fileName, file);
+            .upload(fileName, processedFile, {
+                cacheControl: '31536000'
+            });
 
         if (uploadError) {
             console.error('Error uploading image:', uploadError);
@@ -240,14 +298,28 @@ export const deleteGalleryImage = async (galleryId: string, imageId: string): Pr
         throw new Error('Pricelist tidak ditemukan');
     }
 
-    const imageToDelete = gallery.images.find(img => img.id === imageId);
+    const galleryImages = Array.isArray(gallery.images) ? gallery.images.filter(Boolean) : [];
+    const imageToDelete = galleryImages.find(img => String(img.id) === String(imageId));
+
     if (!imageToDelete) {
-        throw new Error('Gambar tidak ditemukan');
+        console.warn('[Gallery] Image not found in current gallery payload, skipping stale delete.', {
+            galleryId,
+            imageId,
+            imageCount: galleryImages.length,
+        });
+        return;
     }
 
     // Delete from storage
-    const url = new URL(imageToDelete.url);
-    const imagePath = url.pathname.split('/').pop();
+    let imagePath: string | undefined;
+    try {
+        const url = new URL(imageToDelete.url);
+        imagePath = url.pathname.split('/').pop() || undefined;
+    } catch {
+        const fallbackPath = (imageToDelete.url || '').split('/').pop();
+        imagePath = fallbackPath || undefined;
+    }
+
     if (imagePath) {
         await supabase.storage
             .from('gallery-images')
@@ -255,7 +327,7 @@ export const deleteGalleryImage = async (galleryId: string, imageId: string): Pr
     }
 
     // Update gallery images
-    const updatedImages = gallery.images.filter(img => img.id !== imageId);
+    const updatedImages = galleryImages.filter(img => String(img.id) !== String(imageId));
     await updateGallery(galleryId, { images: updatedImages });
 };
 

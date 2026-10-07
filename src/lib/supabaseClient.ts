@@ -65,6 +65,12 @@ function resolveSupabaseConfig() {
 
 const { supabaseUrl, supabaseAnonKey } = resolveSupabaseConfig();
 
+export const isSupabaseConfigured =
+  isValidHttpUrl(supabaseUrl) &&
+  !supabaseUrl.includes('demo-applet.supabase.co') &&
+  !!supabaseAnonKey &&
+  !supabaseAnonKey.includes('demo-anon-key-placeholder');
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default supabase;

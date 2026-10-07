@@ -1007,6 +1007,10 @@ button, .button-primary, .button-secondary {
   main {
     padding-bottom: calc(5rem + var(--safe-area-inset-bottom, 0px)) !important;
   }
+
+  .public-gallery-page > main {
+    padding-bottom: 0 !important;
+  }
 }
 
 /* Floating Action Button Animation */

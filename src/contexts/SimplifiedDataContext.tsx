@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { normalizeTransaction } from '../services/transactions';
 import { normalizeClient } from '../services/clients';
 import { normalizeLead } from '../services/leads';
@@ -166,6 +166,10 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
 
   // ─── Realtime: Supabase → React Query cache (no double state) ──────────
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
+
     const channel = supabase.channel('global-realtime-channel');
 
     const makeHandler = <T extends { id: string }>(
@@ -290,7 +294,7 @@ export const SimplifiedDataProvider: React.FC<{ children: React.ReactNode }> = (
       })
       .subscribe((status, subscribeError) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('[Realtime] Subscription failed:', status, subscribeError);
+          console.warn('[Realtime] Subscription unavailable; continuing without live sync.', { status, subscribeError });
         }
       });
 

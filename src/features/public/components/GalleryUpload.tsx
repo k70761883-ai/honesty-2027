@@ -866,6 +866,26 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                                         Pilih Foto Baru
                                     </label>
 
+                                    {selectedFiles.length > 0 && (
+                                        <div className="bg-brand-surface border border-brand-border/50 rounded-xl p-4">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <h5 className="text-sm font-semibold text-brand-text-light flex items-center gap-2">
+                                                    <span className="w-6 h-6 rounded-full bg-brand-accent/10 flex items-center justify-center text-brand-accent text-[10px]">{selectedFiles.length}</span>
+                                                    File Siap Upload
+                                                </h5>
+                                                <button onClick={() => setSelectedFiles([])} className="text-xs text-brand-danger hover:underline font-medium">Reset</button>
+                                            </div>
+                                            <div className="max-h-40 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                                {selectedFiles.map((file, index) => (
+                                                    <div key={index} className="flex justify-between items-center p-2 rounded-lg bg-brand-bg text-xs">
+                                                        <span className="truncate flex-grow text-brand-text-primary pr-3 font-medium">{file.name}</span>
+                                                        <span className="flex-shrink-0 text-brand-text-secondary">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <button
                                         type="button"
                                         onClick={handleUploadImages}
@@ -959,26 +979,6 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({ userProfile, showNotifica
                             Maksimal 10MB per file. Format: JPG, PNG, WebP.
                         </p>
                     </div>
-
-                    {selectedFiles.length > 0 && (
-                        <div className="bg-brand-surface border border-brand-border/50 rounded-xl p-4">
-                            <div className="flex justify-between items-center mb-3">
-                                <h5 className="text-sm font-semibold text-brand-text-light flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-full bg-brand-accent/10 flex items-center justify-center text-brand-accent text-[10px]">{selectedFiles.length}</span>
-                                    File Siap Upload
-                                </h5>
-                                <button onClick={() => setSelectedFiles([])} className="text-xs text-brand-danger hover:underline font-medium">Reset</button>
-                            </div>
-                            <div className="max-h-40 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                                {selectedFiles.map((file, index) => (
-                                    <div key={index} className="flex justify-between items-center p-2 rounded-lg bg-brand-bg text-xs">
-                                        <span className="truncate flex-grow text-brand-text-primary pr-3 font-medium">{file.name}</span>
-                                        <span className="flex-shrink-0 text-brand-text-secondary">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
                     {uploadProgress > 0 && uploadProgress < 100 && (
                         <div className="bg-brand-surface rounded-xl p-4 border border-brand-border/50">

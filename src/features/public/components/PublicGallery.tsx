@@ -176,65 +176,14 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
         );
     }
 
-    const displayCoverImage = gallery.cover_image_url || gallery.images?.[0]?.url;
     const bookingHref = gallery.booking_link?.trim()
         || `#/public-booking${gallery.region ? `?region=${encodeURIComponent(String(gallery.region).toLowerCase())}` : ''}`;
     const opensExternalBooking = bookingHref.startsWith('http');
 
     return (
-        <div className="min-h-screen bg-black" style={{ fontFamily: "'Tenor Sans', sans-serif" }}>
+        <div className="public-gallery-page min-h-screen bg-black" style={{ fontFamily: "'Tenor Sans', sans-serif" }}>
             {/* Gallery Content */}
             <main className="max-w-7xl mx-auto px-0 py-0">
-                {(displayCoverImage || gallery.title) && (
-                    <div className="bg-white px-3 pt-4 pb-2 sm:px-4 sm:pt-6 sm:pb-3">
-                        <div className="max-w-6xl mx-auto">
-                            <div className="relative overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.12)] border border-slate-200">
-                                {displayCoverImage ? (
-                                    <img
-                                        src={sanitizeImageUrl(displayCoverImage)}
-                                        alt={gallery.title}
-                                        className="h-[240px] w-full object-cover object-center sm:h-[290px] lg:h-[360px]"
-                                        style={{ objectFit: 'cover', width: '100%' }}
-                                    />
-                                ) : (
-                                    <div className="h-[240px] w-full bg-gradient-to-br from-slate-900 via-slate-700 to-blue-900 sm:h-[290px] lg:h-[360px]" />
-                                )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                                <div className="absolute inset-x-0 bottom-0 p-4 sm:p-6 lg:p-8">
-                                    <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/75 sm:text-[10px]">
-                                        Pricelist
-                                    </p>
-                                    <div className="flex items-end justify-between gap-3">
-                                        <h2 className="text-xl font-bold leading-tight text-white sm:text-2xl lg:text-3xl">
-                                            {gallery.title}
-                                        </h2>
-
-                                        {gallery.pdf_url && (
-                                            <button
-                                                type="button"
-                                                onClick={() => void handleDownloadPdf()}
-                                                disabled={isDownloadingPdf}
-                                                aria-busy={isDownloadingPdf}
-                                                className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-[10px] font-semibold text-slate-900 shadow-sm transition-all hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 sm:px-4 sm:text-xs"
-                                            >
-                                                <span className="inline-flex shrink-0" aria-hidden="true">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-slate-900 sm:h-4 sm:w-4">
-                                                        <path d="M14 3v4a2 2 0 0 0 2 2h4" />
-                                                        <path d="M5 12V5a2 2 0 0 1 2-2h8l5 5v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-5" />
-                                                        <path d="M9 17h6" />
-                                                        <path d="M9 13h6" />
-                                                    </svg>
-                                                </span>
-                                                {isDownloadingPdf ? 'Mengunduh PDF...' : 'Download Pricelist PDF'}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {!gallery.images || gallery.images.length === 0 ? (
                     <div className="text-center py-20">
                         <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full flex items-center justify-center">
@@ -246,39 +195,58 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
                 ) : (
                     <div className="pt-6 sm:pt-8">
                         <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-0">
-                            {gallery.images.map((image, index) => (
-                                <div
-                                    key={image.id}
-                                    className="break-inside-avoid cursor-pointer group overflow-hidden relative bg-gray-100"
-                                    onClick={() => openLightbox(image, index)}
-                                >
-                                    <img
-                                        src={sanitizeImageUrl(image.thumbnailUrl || image.url)}
-                                        alt={image.caption || `Foto ${index + 1}`}
-                                        className="w-full h-auto object-cover transition-opacity duration-300"
-                                        loading={index < 8 ? "eager" : "lazy"}
-                                        decoding="async"
-                                        onLoad={(e) => {
-                                            e.currentTarget.style.opacity = '1';
-                                        }}
-                                        style={{ opacity: 0 }}
-                                    />
-                                </div>
-                            ))}
+                            {gallery.images.map((image, index) => {
+                                const isPriorityImage = index === 0;
+                                const imageSrc = sanitizeImageUrl(image.thumbnailUrl || image.url);
+
+                                return (
+                                    <div
+                                        key={image.id}
+                                        className="break-inside-avoid cursor-pointer group overflow-hidden relative bg-gray-100"
+                                        onClick={() => openLightbox(image, index)}
+                                    >
+                                        <img
+                                            src={imageSrc}
+                                            alt={image.caption || `Foto ${index + 1}`}
+                                            className="w-full h-auto object-cover transition-opacity duration-300"
+                                            loading={isPriorityImage ? 'eager' : 'lazy'}
+                                            ref={(node) => {
+                                                if (node) {
+                                                    node.setAttribute('fetchpriority', isPriorityImage ? 'high' : 'auto');
+                                                }
+                                            }}
+                                            decoding="async"
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+                                            onLoad={(e) => {
+                                                e.currentTarget.style.opacity = '1';
+                                            }}
+                                            onError={(e) => {
+                                                e.currentTarget.style.opacity = '1';
+                                            }}
+                                            style={{ opacity: 0 }}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         {/* Booking CTA & Admin Help */}
                         <div className="px-4 py-10 bg-white">
                             <div className="max-w-3xl mx-auto text-center space-y-4">
                                 <p className="text-gray-700">Tertarik dengan layanan kami?</p>
-                                <a
-                                    href={bookingHref}
-                                    target={opensExternalBooking ? '_blank' : undefined}
-                                    rel={opensExternalBooking ? 'noopener noreferrer' : undefined}
-                                    className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-black text-white font-semibold shadow hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
-                                >
-                                    Booking Sekarang
-                                </a>
+                                <div className="flex flex-wrap items-center justify-center gap-3">
+                                    {gallery.pdf_url && (
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleDownloadPdf()}
+                                            disabled={isDownloadingPdf}
+                                            aria-busy={isDownloadingPdf}
+                                            className="inline-flex items-center justify-center gap-2 rounded-full bg-black px-5 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 disabled:cursor-wait disabled:opacity-70"
+                                        >
+                                            {isDownloadingPdf ? 'Mengunduh PDF...' : 'Download Pricelist PDF'}
+                                        </button>
+                                    )}
+                                </div>
 
                                 {profile?.phone && (
                                     <div className="pt-4">
