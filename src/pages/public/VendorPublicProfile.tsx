@@ -140,14 +140,25 @@ const VendorPublicProfile: React.FC = () => {
 
                     {/* Center logo */}
                     <button
-                        onClick={() => scrollTo('hero')}
+                        onClick={() => {
+                            window.location.hash = '#/';
+                            setMenuOpen(false);
+                        }}
                         className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center bg-transparent border-none cursor-pointer"
                     >
                         <span className="text-xl font-light text-[#3d2e22] tracking-[0.12em]">{vendorName}</span>
                     </button>
 
                     {/* Right nav links */}
-                    <div className="hidden md:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-6">
+                        <button
+                            type="button"
+                            onClick={() => window.location.hash = '#/login'}
+                            className="text-xs text-[#8a7260] tracking-[0.18em] uppercase hover:text-[#3d2e22] transition-colors border border-[#d7c9b8] rounded-full px-4 py-2 bg-white/30 hover:bg-[#3d2e22] hover:text-[#f7f4f0]"
+                            style={{ fontFamily: 'Montserrat, sans-serif' }}
+                        >
+                            Login
+                        </button>
                         {whatsappUrl && (
                             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
                                 className="text-xs text-[#8a7260] tracking-[0.18em] uppercase hover:text-[#3d2e22] transition-colors"
@@ -203,6 +214,17 @@ const VendorPublicProfile: React.FC = () => {
                                 FAQ
                             </button>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                window.location.hash = '#/login';
+                                setMenuOpen(false);
+                            }}
+                            className="text-sm text-[#8a7260] tracking-[0.15em] uppercase text-left bg-transparent border-none cursor-pointer"
+                            style={{ fontFamily: 'Montserrat, sans-serif' }}
+                        >
+                            Login
+                        </button>
                         {whatsappUrl && (
                             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
                                 className="text-sm text-[#8a7260] tracking-[0.15em] uppercase"

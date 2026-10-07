@@ -144,7 +144,7 @@ export const PublicRoutes: React.FC<PublicRoutesProps> = ({
   // Normalisasi: hapus '#' dari depan route jika ada
   const r = route.startsWith("#") ? route.slice(1) : route;
 
-  if (r.startsWith("/home") || r === "/" || r === "") {
+  if (r === "/" || r === "") {
     if (isAuthenticated) {
       try {
         const last = window.localStorage.getItem(LAST_ROUTE_STORAGE_KEY);
@@ -162,6 +162,25 @@ export const PublicRoutes: React.FC<PublicRoutesProps> = ({
         console.warn("[Routing] Failed to read last route from localStorage:", e);
       }
 
+      window.location.hash = "#/dashboard";
+      return null;
+    }
+
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-accent"></div>
+          </div>
+        }
+      >
+        <VendorPublicProfile />
+      </Suspense>
+    );
+  }
+
+  if (r.startsWith("/home")) {
+    if (isAuthenticated) {
       window.location.hash = "#/dashboard";
       return null;
     }
