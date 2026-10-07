@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Image as ImageIcon, X } from 'lucide-react';
+import { CalendarDays, Image as ImageIcon, X } from 'lucide-react';
 import { Gallery, GalleryImage, Profile } from '../../../types';
 import { getPublicGallery } from '../../../services/galleries';
 import { getProfile } from '../../../services/profile';
@@ -32,6 +32,7 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
     const [error, setError] = useState<string | null>(null);
     const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
     useEffect(() => {
         loadGalleryData();
@@ -66,6 +67,34 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
     const openLightbox = (image: GalleryImage, index: number) => {
         setSelectedImage(image);
         setCurrentImageIndex(index);
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!gallery?.pdf_url || isDownloadingPdf) return;
+
+        setIsDownloadingPdf(true);
+        try {
+            const response = await fetch(gallery.pdf_url);
+            if (!response.ok) {
+                throw new Error(`PDF download failed with status ${response.status}`);
+            }
+
+            const pdfBlob = await response.blob();
+            const downloadUrl = URL.createObjectURL(pdfBlob);
+            const link = document.createElement('a');
+            const fileName = gallery.pdf_name?.trim() || 'Pricelist';
+            link.href = downloadUrl;
+            link.download = fileName.toLowerCase().endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        } catch (downloadError) {
+            console.error('Error downloading gallery PDF:', downloadError);
+            alert('Gagal mengunduh PDF. Silakan coba lagi.');
+        } finally {
+            setIsDownloadingPdf(false);
+        }
     };
 
     const closeLightbox = () => {
@@ -148,6 +177,9 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
     }
 
     const displayCoverImage = gallery.cover_image_url || gallery.images?.[0]?.url;
+    const bookingHref = gallery.booking_link?.trim()
+        || `#/public-booking${gallery.region ? `?region=${encodeURIComponent(String(gallery.region).toLowerCase())}` : ''}`;
+    const opensExternalBooking = bookingHref.startsWith('http');
 
     return (
         <div className="min-h-screen bg-black" style={{ fontFamily: "'Tenor Sans', sans-serif" }}>
@@ -156,7 +188,7 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
                 {(displayCoverImage || gallery.title) && (
                     <div className="bg-white px-3 pt-4 pb-2 sm:px-4 sm:pt-6 sm:pb-3">
                         <div className="max-w-6xl mx-auto">
-                            <div className="relative overflow-hidden rounded-[30px] shadow-[0_20px_50px_rgba(15,23,42,0.12)] border border-slate-200">
+                            <div className="relative overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.12)] border border-slate-200">
                                 {displayCoverImage ? (
                                     <img
                                         src={sanitizeImageUrl(displayCoverImage)}
@@ -178,21 +210,23 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
                                         </h2>
 
                                         {gallery.pdf_url && (
-                                            <a
-                                                href={gallery.pdf_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                download={gallery.pdf_name || 'Pricelist.pdf'}
-                                                className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-[10px] font-semibold text-slate-900 shadow-sm transition-all hover:bg-slate-100 sm:px-4 sm:text-xs"
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleDownloadPdf()}
+                                                disabled={isDownloadingPdf}
+                                                aria-busy={isDownloadingPdf}
+                                                className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-[10px] font-semibold text-slate-900 shadow-sm transition-all hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 sm:px-4 sm:text-xs"
                                             >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-slate-900 sm:h-4 sm:w-4" aria-hidden="true">
-                                                    <path d="M14 3v4a2 2 0 0 0 2 2h4" />
-                                                    <path d="M5 12V5a2 2 0 0 1 2-2h8l5 5v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-5" />
-                                                    <path d="M9 17h6" />
-                                                    <path d="M9 13h6" />
-                                                </svg>
-                                                Download Pricelist PDF
-                                            </a>
+                                                <span className="inline-flex shrink-0" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-slate-900 sm:h-4 sm:w-4">
+                                                        <path d="M14 3v4a2 2 0 0 0 2 2h4" />
+                                                        <path d="M5 12V5a2 2 0 0 1 2-2h8l5 5v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-5" />
+                                                        <path d="M9 17h6" />
+                                                        <path d="M9 13h6" />
+                                                    </svg>
+                                                </span>
+                                                {isDownloadingPdf ? 'Mengunduh PDF...' : 'Download Pricelist PDF'}
+                                            </button>
                                         )}
                                     </div>
                                 </div>
@@ -238,13 +272,9 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
                             <div className="max-w-3xl mx-auto text-center space-y-4">
                                 <p className="text-gray-700">Tertarik dengan layanan kami?</p>
                                 <a
-                                    href={
-                                        gallery.booking_link && gallery.booking_link.trim() !== ''
-                                            ? gallery.booking_link
-                                            : `#/public-booking${gallery.region ? `?region=${encodeURIComponent(String(gallery.region).toLowerCase())}` : ''}`
-                                    }
-                                    target={gallery.booking_link && gallery.booking_link.startsWith('http') ? '_blank' : undefined}
-                                    rel={gallery.booking_link && gallery.booking_link.startsWith('http') ? 'noopener noreferrer' : undefined}
+                                    href={bookingHref}
+                                    target={opensExternalBooking ? '_blank' : undefined}
+                                    rel={opensExternalBooking ? 'noopener noreferrer' : undefined}
                                     className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-black text-white font-semibold shadow hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
                                 >
                                     Booking Sekarang
@@ -271,6 +301,17 @@ const PublicGallery: React.FC<PublicGalleryProps> = ({ galleryId }) => {
                     </div>
                 )}
             </main>
+
+            <a
+                href={bookingHref}
+                target={opensExternalBooking ? '_blank' : undefined}
+                rel={opensExternalBooking ? 'noopener noreferrer' : undefined}
+                className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-white/30 transition-colors hover:bg-gray-800 sm:bottom-6 sm:right-6"
+                aria-label="Booking Sekarang"
+            >
+                <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
+                Booking Sekarang
+            </a>
 
             {/* Lightbox */}
             {selectedImage && (
