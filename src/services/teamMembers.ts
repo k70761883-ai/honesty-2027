@@ -1,4 +1,5 @@
 import supabase from '../lib/supabaseClient';
+import { compressImage } from './storage';
 import { TeamMember, PerformanceNote } from '../types';
 import { publicNamePatternsFromSlug } from '../utils/publicRouting';
 
@@ -54,11 +55,12 @@ function denormalize(obj: Partial<TeamMember>): any {
 }
 
 export async function uploadTeamMemberAvatar(file: File): Promise<string> {
-  const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const processedFile = await compressImage(file, 1000, 0.8, 200 * 1024);
+  const extension = processedFile.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
   const path = `team-members/avatars/${crypto.randomUUID()}.${extension}`;
   const { error } = await supabase.storage
     .from('gallery-images')
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, processedFile, { contentType: processedFile.type, upsert: false });
 
   if (error) throw error;
 

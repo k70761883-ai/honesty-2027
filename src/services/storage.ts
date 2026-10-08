@@ -4,7 +4,7 @@ const DP_PROOFS_BUCKET = 'dp-proofs';
 const GALLERY_BUCKET = 'gallery-images';
 
 export async function uploadDpProof(file: File): Promise<string> {
-  const processedFile = await compressImage(file, 1200); // compress for proof
+  const processedFile = await compressImage(file, 1200, 0.8, 400 * 1024); // retain readability for proof images
   const ext = (processedFile.name.split('.').pop() || 'bin').toLowerCase();
   const path = `${new Date().getFullYear()}/${new Date().getMonth() + 1}/${crypto.randomUUID()}.${ext}`;
 
@@ -25,7 +25,12 @@ export async function uploadDpProof(file: File): Promise<string> {
 }
 
 // Fungsi untuk mengompres gambar menggunakan Canvas API
-async function compressImage(file: File, maxWidthOrHeight: number = 1920, quality: number = 0.8): Promise<File> {
+export async function compressImage(
+  file: File,
+  maxWidthOrHeight: number = 1920,
+  quality: number = 0.8,
+  maxSizeBytes?: number,
+): Promise<File> {
   if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
     return file; // Jangan kompres non-gambar, gif, atau svg
   }
@@ -51,31 +56,56 @@ async function compressImage(file: File, maxWidthOrHeight: number = 1920, qualit
         }
 
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           resolve(file);
           return;
         }
-        
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
-            } else {
-              resolve(file);
+
+        const qualities = maxSizeBytes
+          ? [...new Set([quality, Math.max(0.4, quality - 0.15), Math.max(0.4, quality - 0.3)])]
+          : [quality];
+        const encode = (qualityStep: number) => new Promise<Blob | null>((resolveBlob) => {
+          canvas.toBlob(resolveBlob, 'image/jpeg', qualityStep);
+        });
+        const makeCompressedFile = (blob: Blob) => new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+          type: 'image/jpeg',
+          lastModified: Date.now(),
+        });
+
+        void (async () => {
+          let bestBlob: Blob | null = null;
+          let currentWidth = width;
+          let currentHeight = height;
+
+          for (let resizeAttempt = 0; resizeAttempt < 8; resizeAttempt++) {
+            canvas.width = currentWidth;
+            canvas.height = currentHeight;
+            ctx.drawImage(img, 0, 0, currentWidth, currentHeight);
+
+            for (const qualityStep of qualities) {
+              const blob = await encode(qualityStep);
+              if (!blob) {
+                resolve(file);
+                return;
+              }
+
+              if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob;
+              if (!maxSizeBytes || blob.size <= maxSizeBytes) {
+                resolve(makeCompressedFile(blob));
+                return;
+              }
             }
-          },
-          'image/jpeg',
-          quality
-        );
+
+            const longestEdge = Math.max(currentWidth, currentHeight);
+            if (!maxSizeBytes || longestEdge <= 640) break;
+            const scale = Math.max(640 / longestEdge, 0.85);
+            currentWidth = Math.max(1, Math.round(currentWidth * scale));
+            currentHeight = Math.max(1, Math.round(currentHeight * scale));
+          }
+
+          resolve(bestBlob ? makeCompressedFile(bestBlob) : file);
+        })().catch(reject);
       };
       img.onerror = (err) => reject(err);
     };
@@ -90,7 +120,7 @@ export async function uploadGalleryImage(file: File, compress: boolean = true): 
   }
   
   // Kompres gambar jika compress true (default sekarang true agar jadi KB)
-  const processedFile = compress ? await compressImage(file, 1920, 0.8) : file;
+  const processedFile = compress ? await compressImage(file, 1920, 0.8, 200 * 1024) : file;
   
   // Final size check
   if (processedFile.size > 10 * 1024 * 1024) { // 10MB limit

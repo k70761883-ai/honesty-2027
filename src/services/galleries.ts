@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { compressImage } from './storage';
 import { Gallery, GalleryImage } from '../types';
 
 export const createGallery = async (galleryData: Omit<Gallery, 'id' | 'public_id' | 'created_at' | 'updated_at'>): Promise<Gallery> => {
@@ -147,60 +148,6 @@ export const deleteGallery = async (id: string): Promise<void> => {
     }
 };
 
-async function compressGalleryImage(file: File, maxWidthOrHeight: number = 1600, quality: number = 0.8): Promise<File> {
-    if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
-        return file;
-    }
-
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-            const image = new Image();
-            image.src = event.target?.result as string;
-            image.onload = () => {
-                let width = image.width;
-                let height = image.height;
-
-                if (width > maxWidthOrHeight || height > maxWidthOrHeight) {
-                    if (width > height) {
-                        height = Math.round((height * maxWidthOrHeight) / width);
-                        width = maxWidthOrHeight;
-                    } else {
-                        width = Math.round((width * maxWidthOrHeight) / height);
-                        height = maxWidthOrHeight;
-                    }
-                }
-
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const context = canvas.getContext('2d');
-
-                if (!context) {
-                    resolve(file);
-                    return;
-                }
-
-                context.drawImage(image, 0, 0, width, height);
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        resolve(file);
-                        return;
-                    }
-
-                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
-                        type: 'image/jpeg',
-                        lastModified: Date.now(),
-                    });
-                    resolve(compressedFile);
-                }, 'image/jpeg', quality);
-            };
-            image.onerror = () => resolve(file);
-        };
-        reader.onerror = () => resolve(file);
-    });
-}
 
 export const uploadGalleryImages = async (
     galleryId: string,
@@ -211,7 +158,7 @@ export const uploadGalleryImages = async (
 
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const processedFile = await compressGalleryImage(file);
+        const processedFile = await compressImage(file, 1600, 0.8, 200 * 1024);
         const fileExt = processedFile.name.split('.').pop() || 'jpg';
         const fileName = `${galleryId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
@@ -369,13 +316,14 @@ export const getGalleriesByRegion = async (region: string): Promise<Gallery[]> =
 };
 
 export const uploadCoverImage = async (galleryId: string, file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
+    const processedFile = await compressImage(file, 1600, 0.8, 200 * 1024);
+    const fileExt = processedFile.name.split('.').pop();
     const fileName = `${galleryId}/cover-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
         .from('gallery-images')
-        .upload(fileName, file);
+        .upload(fileName, processedFile);
 
     if (uploadError) {
         console.error('Error uploading cover image:', uploadError);

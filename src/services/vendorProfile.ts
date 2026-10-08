@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { compressImage } from './storage';
 import { VendorProfile } from '../types';
 
 const LOCAL_STORAGE_KEY = 'weddfin-vendor-profile';
@@ -172,13 +173,15 @@ export const createOrUpdateVendorProfile = async (updates: Partial<VendorProfile
 };
 
 export const uploadVendorImage = async (file: File, path: string): Promise<string> => {
+    let processedFile = file;
     try {
-        const fileExt = file.name.split('.').pop();
+        processedFile = await compressImage(file, 1600, 0.72, 200 * 1024);
+        const fileExt = processedFile.name.split('.').pop() || 'jpg';
         const fileName = `${path}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
             .from('gallery-images')
-            .upload(fileName, file);
+            .upload(fileName, processedFile);
 
         if (!uploadError) {
             const { data: urlData } = supabase.storage
@@ -196,5 +199,5 @@ export const uploadVendorImage = async (file: File, path: string): Promise<strin
     }
 
     // Fallback to Base64 data URL
-    return await fileToBase64(file);
+    return await fileToBase64(processedFile);
 };

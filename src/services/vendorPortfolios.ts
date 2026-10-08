@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { compressImage } from './storage';
 import { VendorPortfolio, PortfolioImage } from '../types';
 
 const YOUTUBE_URLS_CACHE_KEY = 'weddfin-portfolio-youtube-urls';
@@ -226,14 +227,16 @@ export const uploadPortfolioImages = async (
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         let imageUrl = '';
+        let processedFile = file;
 
         try {
-            const fileExt = file.name.split('.').pop();
+            processedFile = await compressImage(file, 1600, 0.72, 200 * 1024);
+            const fileExt = processedFile.name.split('.').pop() || 'jpg';
             const fileName = `${portfolioId}/img-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('gallery-images')
-                .upload(fileName, file);
+                .upload(fileName, processedFile);
 
             if (!uploadError) {
                 const { data: urlData } = supabase.storage
@@ -242,11 +245,11 @@ export const uploadPortfolioImages = async (
                 imageUrl = urlData.publicUrl;
             } else {
                 console.warn('[vendorPortfolios] Storage upload failed, falling back to base64:', uploadError);
-                imageUrl = await fileToBase64(file);
+                imageUrl = await fileToBase64(processedFile);
             }
         } catch (err) {
             console.warn('[vendorPortfolios] Storage upload exception, falling back to base64:', err);
-            imageUrl = await fileToBase64(file);
+            imageUrl = await fileToBase64(processedFile);
         }
 
         if (imageUrl) {
@@ -278,14 +281,16 @@ export const uploadPortfolioCover = async (
     file: File
 ): Promise<string> => {
     let coverUrl = '';
+    let processedFile = file;
 
     try {
-        const fileExt = file.name.split('.').pop();
+        processedFile = await compressImage(file, 1600, 0.72, 200 * 1024);
+        const fileExt = processedFile.name.split('.').pop() || 'jpg';
         const fileName = `${portfolioId}/cover-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
             .from('gallery-images')
-            .upload(fileName, file);
+            .upload(fileName, processedFile);
 
         if (!uploadError) {
             const { data: urlData } = supabase.storage
@@ -294,11 +299,11 @@ export const uploadPortfolioCover = async (
             coverUrl = urlData.publicUrl;
         } else {
             console.warn('[vendorPortfolios] Cover upload failed, falling back to base64:', uploadError);
-            coverUrl = await fileToBase64(file);
+            coverUrl = await fileToBase64(processedFile);
         }
     } catch (err) {
         console.warn('[vendorPortfolios] Cover upload exception, falling back to base64:', err);
-        coverUrl = await fileToBase64(file);
+        coverUrl = await fileToBase64(processedFile);
     }
 
     await updateVendorPortfolio(portfolioId, { cover_image_url: coverUrl });
